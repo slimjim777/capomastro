@@ -130,6 +130,7 @@ class ProjectBuild(models.Model):
     status = models.CharField(max_length=10, default="UNKNOWN")
     phase = models.CharField(max_length=25, default="UNKNOWN")
     build_id = models.CharField(max_length=20)
+    archived = models.DateTimeField(null=True, blank=True)
 
     build_dependencies = models.ManyToManyField(
         Build, through=ProjectBuildDependency)
@@ -144,6 +145,17 @@ class ProjectBuild(models.Model):
         project build.
         """
         return Artifact.objects.filter(build__build_id=self.build_id)
+
+    @property
+    def can_be_archived(self):
+        """
+        Returns True if the requirements for archiving this ProjectBuild are
+        met.
+        """
+        return (
+            self.phase == "FINISHED"
+            and not self.archived
+            and self.get_current_artifacts().exists())
 
     def save(self, **kwargs):
         if not self.pk:
