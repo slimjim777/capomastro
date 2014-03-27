@@ -12,9 +12,11 @@ from jenkins.models import Build
 from projects.models import (
     Project, Dependency, ProjectDependency, ProjectBuild,
     ProjectBuildDependency)
-from projects.forms import ProjectForm, DependencyForm, ProjectBuildForm
+from projects.forms import (
+    ProjectForm, DependencyForm, ProjectBuildForm, ProjectBuildArchiveForm)
 from projects.helpers import build_project, build_dependency
 from projects.utils import get_build_table_for_project
+from projects.tasks import archive_projectbuild
 
 
 class ProjectCreateView(
@@ -104,10 +106,10 @@ class ProjectBuildListView(LoginRequiredMixin, ListView):
         return context
 
 
-class ProjectBuildDetailView(LoginRequiredMixin, DetailView):
+class ProjectBuildDetailView(LoginRequiredMixin, FormView):
 
-    context_object_name = "projectbuild"
-    model = ProjectBuild
+    form_class = ProjectBuildArchiveForm
+    template_name = "projects/projectbuild_detail.html"
 
     def get_object(self):
         project_pk = self.kwargs["project_pk"]
@@ -117,6 +119,12 @@ class ProjectBuildDetailView(LoginRequiredMixin, DetailView):
 
     def _get_project_from_url(self):
         return get_object_or_404(Project, pk=self.kwargs["project_pk"])
+
+    def _get_build_from_url(self):
+        project_pk = self.kwargs["project_pk"]
+        build_pk = self.kwargs["build_pk"]
+        return get_object_or_404(
+            ProjectBuild, project__pk=project_pk, pk=build_pk)
 
     def _get_build_dependencies(self, projectbuild):
         return ProjectBuildDependency.objects.filter(projectbuild=projectbuild)
@@ -128,9 +136,32 @@ class ProjectBuildDetailView(LoginRequiredMixin, DetailView):
         context = super(
             ProjectBuildDetailView, self).get_context_data(**kwargs)
         context["project"] = self._get_project_from_url()
+        context["projectbuild"] = self._get_build_from_url()
         context["dependencies"] = self._get_build_dependencies(
             context["projectbuild"])
+        can_be_archived = False
+        if context["projectbuild"].get_current_artifacts().count() > 0:
+            if context["projectbuild"].archived is None:
+                can_be_archived = True
+        context["can_be_archived"] = can_be_archived
         return context
+
+    def form_valid(self, form):
+        """
+        Queue archiving of this project build.
+        """
+        projectbuild = self.get_object()
+        archive = form.cleaned_data["archive"]
+        # TODO: See note in helpers about refactoring the tasks/helpers.
+        archive_projectbuild.delay(projectbuild.pk, archive.pk)
+        messages.add_message(
+            self.request, messages.INFO,
+            "Archiving for '%s' queued." % projectbuild.build_id)
+        url = reverse(
+            "project_projectbuild_detail",
+            kwargs={"project_pk": projectbuild.project.pk,
+                    "build_pk": projectbuild.pk})
+        return HttpResponseRedirect(url)
 
 
 class ProjectDetailView(LoginRequiredMixin, DetailView):
@@ -190,6 +221,7 @@ class DependencyDetailView(LoginRequiredMixin, DetailView):
 
     def post(self, request, pk):
         """
+        Queue a build of this Dependency.
         """
         dependency = get_object_or_404(Dependency, pk=pk)
         build_dependency(dependency)

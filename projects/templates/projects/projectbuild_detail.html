@@ -61,6 +61,21 @@
       </tbody>
     </table>
   </div>
+  <div class="row">
+    <h3>Archive these artifacts</h3>
+    <form action="" method="post" class="form" id="archivebuild-form">
+      {% csrf_token %}
+      {% bootstrap_form form %}
+      {% buttons %}
+        <button type="submit" class="btn btn-primary">Archive</button>
+      {% endbuttons %}
+    </form>
+  </div>
 
 </div>
 {% endblock %}
+
+
+
+
+

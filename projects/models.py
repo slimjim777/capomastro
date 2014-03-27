@@ -130,6 +130,7 @@ class ProjectBuild(models.Model):
     status = models.CharField(max_length=10, default="UNKNOWN")
     phase = models.CharField(max_length=25, default="UNKNOWN")
     build_id = models.CharField(max_length=20)
+    archived = models.DateTimeField(null=True, blank=True)
 
     build_dependencies = models.ManyToManyField(
         Build, through=ProjectBuildDependency)

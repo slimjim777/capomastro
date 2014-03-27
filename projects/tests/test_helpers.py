@@ -208,3 +208,4 @@ class ArchiveProjectBuildTest(TestCase):
 
         mock_archive.return_value.return_value.assert_has_calls(
             [mock.call.archive()])
+        self.assertTrue(projectbuild.archived)

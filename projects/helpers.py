@@ -1,3 +1,5 @@
+from django.utils import timezone
+
 from jenkins.tasks import build_job
 from projects.models import ProjectDependency
 
@@ -61,6 +63,8 @@ def get_transport_for_projectbuild(projectbuild, archive):
     return transport
 
 
+# TODO: It'd be nice if this handled the task, so that a view didn't need to
+# know whether or not there was a delayed task involved.
 def archive_projectbuild(projectbuild, archive):
     """
     Archives the artifacts for a projectbuild.
@@ -69,3 +73,5 @@ def archive_projectbuild(projectbuild, archive):
     """
     transport = get_transport_for_projectbuild(projectbuild, archive)
     transport.archive()
+    projectbuild.archived = timezone.now()
+    projectbuild.save()

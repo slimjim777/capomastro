@@ -1,5 +1,6 @@
 from django.core.urlresolvers import reverse
 from django.contrib.auth.models import User
+from django.utils import timezone
 
 from django_webtest import WebTest
 import mock
@@ -11,7 +12,10 @@ from jenkins.models import Job
 from .factories import (
     ProjectFactory, DependencyFactory, ProjectBuildFactory)
 from jenkins.tests.factories import (
-    BuildFactory, JobFactory, JobTypeFactory, JenkinsServerFactory)
+    BuildFactory, JobFactory, JobTypeFactory, JenkinsServerFactory,
+    ArtifactFactory)
+from archives.tests.factories import ArchiveFactory
+
 
 # TODO Introduce subclass of WebTest that allows easy assertions that a page
 # requires various permissions...
@@ -195,6 +199,68 @@ class ProjectBuildDetailTest(WebTest):
         self.assertEqual(projectbuild, response.context["projectbuild"])
         self.assertEqual(
             list(dependencies), list(response.context["dependencies"]))
+        self.assertFalse(
+            response.context["can_be_archived"],
+            "Build with no artifacts can be archived")
+
+    def test_project_build_detail_view_already_archived(self):
+        """
+        If a projectbuild has the archived date set, then it has already been
+        archived.
+        """
+        project = ProjectFactory.create()
+        dependency = DependencyFactory.create()
+        ProjectDependency.objects.create(
+            project=project, dependency=dependency)
+
+        projectbuild = build_project(project, queue_build=False)
+        projectbuild.archived = timezone.now()
+        projectbuild.save()
+        build = BuildFactory.create(
+            job=dependency.job, build_id=projectbuild.build_id)
+        ArtifactFactory.create(build=build)
+
+        url = reverse(
+            "project_projectbuild_detail",
+            kwargs={"project_pk": project.pk, "build_pk": projectbuild.pk})
+        response = self.app.get(url, user="testing")
+        self.assertFalse(
+            response.context["can_be_archived"], "Build can be archived")
+
+    def test_project_build_can_be_archived(self):
+        """
+        If a projectbuild has the archived date set, then it has already been
+        archived.
+        """
+        archive = ArchiveFactory.create()
+        project = ProjectFactory.create()
+        dependency = DependencyFactory.create()
+        ProjectDependency.objects.create(
+            project=project, dependency=dependency)
+
+        projectbuild = build_project(project, queue_build=False)
+        build = BuildFactory.create(
+            job=dependency.job, build_id=projectbuild.build_id)
+        ArtifactFactory.create(build=build)
+
+        url = reverse(
+            "project_projectbuild_detail",
+            kwargs={"project_pk": project.pk, "build_pk": projectbuild.pk})
+        response = self.app.get(url, user="testing")
+        self.assertTrue(
+            response.context["can_be_archived"], "Build cannot be archived")
+
+        form = response.forms["archivebuild-form"]
+        form["archive"].select(archive.pk)
+
+        with mock.patch("projects.views.archive_projectbuild") as archive_build_mock:
+            response = form.submit().follow()
+
+        archive_build_mock.delay.assert_called_once_with(
+            projectbuild.pk, archive.pk)
+        self.assertContains(
+            response,
+            "Archiving for '%s' queued." % projectbuild.build_id)
 
 
 class DependencyListTest(WebTest):

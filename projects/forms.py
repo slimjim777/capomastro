@@ -5,6 +5,7 @@ from projects.models import (
     Project, Dependency, ProjectDependency)
 from jenkins.helpers import create_job
 from jenkins.tasks import push_job_to_jenkins
+from archives.models import Archive
 
 
 class ProjectForm(forms.ModelForm):
@@ -70,3 +71,8 @@ class ProjectBuildForm(forms.Form):
         error_messages={"required": "Must select at least one dependency."})
     project = forms.ModelChoiceField(
         Project.objects, required=True, widget=forms.HiddenInput)
+
+
+class ProjectBuildArchiveForm(forms.Form):
+
+    archive = forms.ModelChoiceField(Archive.objects, required=True)
