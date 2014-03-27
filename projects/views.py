@@ -139,11 +139,7 @@ class ProjectBuildDetailView(LoginRequiredMixin, FormView):
         context["projectbuild"] = self._get_build_from_url()
         context["dependencies"] = self._get_build_dependencies(
             context["projectbuild"])
-        can_be_archived = False
-        if context["projectbuild"].get_current_artifacts().count() > 0:
-            if context["projectbuild"].archived is None:
-                can_be_archived = True
-        context["can_be_archived"] = can_be_archived
+        context["can_be_archived"] = context["projectbuild"].can_be_archived
         return context
 
     def form_valid(self, form):

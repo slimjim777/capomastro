@@ -168,6 +168,7 @@ class ProjectBuildDetailTest(WebTest):
 
     def setUp(self):
         self.user = User.objects.create_user("testing")
+        self.project = ProjectFactory.create()
 
     def test_page_requires_authenticated_user(self):
         """
@@ -179,18 +180,18 @@ class ProjectBuildDetailTest(WebTest):
         """
         Project build detail should show the build.
         """
-        project = ProjectFactory.create()
         dependency = DependencyFactory.create()
         ProjectDependency.objects.create(
-            project=project, dependency=dependency)
+            project=self.project, dependency=dependency)
 
-        projectbuild = build_project(project, queue_build=False)
+        projectbuild = build_project(self.project, queue_build=False)
         BuildFactory.create(
             job=dependency.job, build_id=projectbuild.build_id)
 
         url = reverse(
             "project_projectbuild_detail",
-            kwargs={"project_pk": project.pk, "build_pk": projectbuild.pk})
+            kwargs={"project_pk": self.project.pk,
+                    "build_pk": projectbuild.pk})
         response = self.app.get(url, user="testing")
 
         dependencies = ProjectBuildDependency.objects.filter(
@@ -202,18 +203,19 @@ class ProjectBuildDetailTest(WebTest):
         self.assertFalse(
             response.context["can_be_archived"],
             "Build with no artifacts can be archived")
+        self.assertIsNone(response.forms.get("archivebuild-form"))
+        self.assertContains(response, "Build cannot currently be archived.")
 
     def test_project_build_detail_view_already_archived(self):
         """
         If a projectbuild has the archived date set, then it has already been
         archived.
         """
-        project = ProjectFactory.create()
         dependency = DependencyFactory.create()
         ProjectDependency.objects.create(
-            project=project, dependency=dependency)
+            project=self.project, dependency=dependency)
 
-        projectbuild = build_project(project, queue_build=False)
+        projectbuild = build_project(self.project, queue_build=False)
         projectbuild.archived = timezone.now()
         projectbuild.save()
         build = BuildFactory.create(
@@ -222,7 +224,8 @@ class ProjectBuildDetailTest(WebTest):
 
         url = reverse(
             "project_projectbuild_detail",
-            kwargs={"project_pk": project.pk, "build_pk": projectbuild.pk})
+            kwargs={"project_pk": self.project.pk,
+                    "build_pk": projectbuild.pk})
         response = self.app.get(url, user="testing")
         self.assertFalse(
             response.context["can_be_archived"], "Build can be archived")
@@ -233,19 +236,20 @@ class ProjectBuildDetailTest(WebTest):
         archived.
         """
         archive = ArchiveFactory.create()
-        project = ProjectFactory.create()
         dependency = DependencyFactory.create()
         ProjectDependency.objects.create(
-            project=project, dependency=dependency)
+            project=self.project, dependency=dependency)
 
-        projectbuild = build_project(project, queue_build=False)
+        projectbuild = build_project(self.project, queue_build=False)
         build = BuildFactory.create(
-            job=dependency.job, build_id=projectbuild.build_id)
+            job=dependency.job, build_id=projectbuild.build_id, phase="FINISHED")
         ArtifactFactory.create(build=build)
 
         url = reverse(
             "project_projectbuild_detail",
-            kwargs={"project_pk": project.pk, "build_pk": projectbuild.pk})
+            kwargs={"project_pk": self.project.pk,
+                    "build_pk": projectbuild.pk})
+
         response = self.app.get(url, user="testing")
         self.assertTrue(
             response.context["can_be_archived"], "Build cannot be archived")

@@ -146,6 +146,17 @@ class ProjectBuild(models.Model):
         """
         return Artifact.objects.filter(build__build_id=self.build_id)
 
+    @property
+    def can_be_archived(self):
+        """
+        Returns True if the requirements for archiving this ProjectBuild are
+        met.
+        """
+        return (
+            self.phase == "FINISHED"
+            and not self.archived
+            and self.get_current_artifacts().exists())
+
     def save(self, **kwargs):
         if not self.pk:
             self.build_id = generate_projectbuild_id(self)

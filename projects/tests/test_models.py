@@ -181,17 +181,16 @@ class ProjectBuildTest(TestCase):
         job, and we get a build from that job, then if the build_id is correct,
         we should associate the build dependency with that build.
         """
-        project = ProjectFactory.create()
         dependency1 = DependencyFactory.create()
         ProjectDependency.objects.create(
-            project=project, dependency=dependency1)
+            project=self.project, dependency=dependency1)
 
         dependency2 = DependencyFactory.create()
         ProjectDependency.objects.create(
-            project=project, dependency=dependency2)
+            project=self.project, dependency=dependency2)
 
         from projects.helpers import build_project
-        projectbuild = build_project(project, queue_build=False)
+        projectbuild = build_project(self.project, queue_build=False)
 
         build1 = BuildFactory.create(
             job=dependency1.job, build_id=projectbuild.build_id)
@@ -210,17 +209,16 @@ class ProjectBuildTest(TestCase):
         When we have FINISHED builds for all the dependencies, the projectbuild
         state should be FINISHED.
         """
-        project = ProjectFactory.create()
         dependency1 = DependencyFactory.create()
         ProjectDependency.objects.create(
-            project=project, dependency=dependency1)
+            project=self.project, dependency=dependency1)
 
         dependency2 = DependencyFactory.create()
         ProjectDependency.objects.create(
-            project=project, dependency=dependency2)
+            project=self.project, dependency=dependency2)
 
         from projects.helpers import build_project
-        projectbuild = build_project(project, queue_build=False)
+        projectbuild = build_project(self.project, queue_build=False)
 
         for job in [dependency1.job, dependency2.job]:
             BuildFactory.create(
@@ -256,3 +254,64 @@ class ProjectBuildTest(TestCase):
                 job=job, build_id=projectbuild.build_id, phase="FINISHED")
 
         self.assertEqual(projectbuild, self.projectbuild)
+
+    def test_can_be_archived(self):
+        """
+        A ProjectBuild knows whether or not it's ready to be archived.
+        """
+        dependency1 = DependencyFactory.create()
+        ProjectDependency.objects.create(
+            project=self.project, dependency=dependency1)
+
+        dependency2 = DependencyFactory.create()
+        ProjectDependency.objects.create(
+            project=self.project, dependency=dependency2)
+
+        from projects.helpers import build_project
+        projectbuild = build_project(self.project, queue_build=False)
+
+        # Current status is STARTED so we can't archive this build.
+        self.assertEqual("UNKNOWN", projectbuild.phase)
+        self.assertFalse(projectbuild.can_be_archived)
+
+        builds = []
+        for job in [dependency1.job, dependency2.job]:
+            builds.append(
+                BuildFactory.create(
+                    job=job, build_id=projectbuild.build_id,
+                    phase="FINISHED"))
+        projectbuild = ProjectBuild.objects.get(pk=projectbuild.pk)
+        self.assertEqual("FINISHED", projectbuild.phase)
+
+        self.assertFalse(
+            projectbuild.can_be_archived,
+            "Build with no artifacts can be archived")
+        for build in builds:
+            ArtifactFactory.create(build=build)
+        self.assertTrue(
+            projectbuild.can_be_archived,
+            "Build with artifacts can't be archived")
+
+        projectbuild.archived = timezone.now()
+        self.assertFalse(projectbuild.can_be_archived)
+
+    def test_can_be_archived_with_no_artifacts(self):
+        """
+        A projectbuild with no artifacts can't be archived.
+        """
+        dependency1 = DependencyFactory.create()
+        ProjectDependency.objects.create(
+            project=self.project, dependency=dependency1)
+
+        dependency2 = DependencyFactory.create()
+        ProjectDependency.objects.create(
+            project=self.project, dependency=dependency2)
+
+        from projects.helpers import build_project
+        projectbuild = build_project(self.project, queue_build=False)
+
+        for job in [dependency1.job, dependency2.job]:
+            BuildFactory.create(
+                job=job, build_id=projectbuild.build_id, phase="FINISHED")
+        projectbuild = ProjectBuild.objects.get(pk=projectbuild.pk)
+        self.assertFalse(projectbuild.can_be_archived)

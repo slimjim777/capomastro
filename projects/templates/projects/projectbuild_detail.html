@@ -61,6 +61,7 @@
       </tbody>
     </table>
   </div>
+  {% if can_be_archived %}
   <div class="row">
     <h3>Archive these artifacts</h3>
     <form action="" method="post" class="form" id="archivebuild-form">
@@ -71,11 +72,9 @@
       {% endbuttons %}
     </form>
   </div>
+  {% else %}
+    <p>Build cannot currently be archived.</p>
+  {% endif %}
 
 </div>
 {% endblock %}
-
-
-
-
-
