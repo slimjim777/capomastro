@@ -29,6 +29,7 @@ INSTALLED_APPS = (
     'south',
     'bootstrap3',
     'rest_framework',
+    'social_auth',
 
     'jenkins',
     'projects',
@@ -110,8 +111,6 @@ REST_FRAMEWORK = {
         'rest_framework.permissions.DjangoModelPermissions'
     ]
 }
-
-
 
 
 try:
