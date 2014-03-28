@@ -14,6 +14,7 @@ urlpatterns = patterns('',
     # url(r'^blog/', include('blog.urls')),
     url(r'^$', HomeView.as_view(), name='home'),
     url(r'^', include('projects.urls')),
+    url(r'^', include('social_auth.urls')),
     url(r'^jenkins/', include('jenkins.urls')),
     url(r'^admin/', include(admin.site.urls)),
 )
@@ -21,8 +22,3 @@ urlpatterns = patterns('',
 
 if settings.DEBUG:
     urlpatterns += staticfiles_urlpatterns()
-
-if hasattr(settings, 'AUTHENTICATION_URLS'):
-    urlpatterns += settings.AUTHENTICATION_URLS
-else:
-    urlpatterns += url(r'^accounts/', include('django.contrib.auth.urls')),
