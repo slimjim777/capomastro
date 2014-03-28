@@ -28,6 +28,7 @@ INSTALLED_APPS = (
 
     'south',
     'bootstrap3',
+    'social_auth',
 
     'jenkins',
     'projects',
