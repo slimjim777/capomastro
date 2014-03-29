@@ -1,4 +1,4 @@
-capomastro
+capomastro [![Build Status](https://travis-ci.org/capomastro/capomastro.svg)](https://travis-ci.org/capomastro/capomastro)
 ==========
 Master builder
 
