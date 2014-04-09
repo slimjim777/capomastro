@@ -22,7 +22,7 @@ class Command(BaseCommand):
         public_key, private_key, name = args
 
         import_sshkeypair(
-            label, public_key, private_key,
+            name, public_key, private_key,
             update=options["update"], stdout=self.stdout)
 
         transaction.commit_unless_managed()
