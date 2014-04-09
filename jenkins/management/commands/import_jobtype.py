@@ -24,6 +24,6 @@ class Command(BaseCommand):
 
         with codecs.open(filename) as f:
             import_jobtype(
-                f, jobtype, update=options["update"], stdout=self.stdout)
+                jobtype, f, update=options["update"], stdout=self.stdout)
 
         transaction.commit_unless_managed()
