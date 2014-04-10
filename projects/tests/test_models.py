@@ -58,7 +58,6 @@ class DependencyTest(TestCase):
         self.assertIsNone(dependency.get_build_parameters())
 
 
-
 class ProjectDependencyTest(TestCase):
 
     def test_instantiation(self):
