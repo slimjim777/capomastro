@@ -32,8 +32,10 @@ runserver.
 
 You'll need a celery worker running as well as rabbitmq.
 
+```
 $ gunicorn -b 0.0.0.0:8000 capomastro.wsgi:application
 $ celery -A capomastro worker -l info
+```
 
 5. You'll need an initial jenkins.JenkinsServer object, with the correct credentials,
    and the REMOTE_ADDR setup correctly, so that it can receive callbacks.
