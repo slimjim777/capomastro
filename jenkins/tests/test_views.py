@@ -291,3 +291,22 @@ class JobTypeDetailTest(WebTest):
             response, "<code>this is the job xml</code>", html=True)
         self.assertContains(response, jobtype.name)
         self.assertContains(response, jobtype.description)
+
+
+class BuildDetailTest(WebTest):
+
+    def setUp(self):
+        self.user = User.objects.create_user("testing")
+
+    def test_build_detail(self):
+        """
+        The build view should render the details for the build.
+        """
+        build = BuildFactory.create()
+        build_url = reverse(
+            "build_detail", kwargs={"pk": build.pk})
+        response = self.app.get(build_url, user="testing")
+
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(
+            build, response.context["build"])

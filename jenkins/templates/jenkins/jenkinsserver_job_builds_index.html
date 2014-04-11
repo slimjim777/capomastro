@@ -28,11 +28,11 @@
       <tbody>
         {% for build in builds %}
         <tr class="{{ build.status|build_status_to_class }}">
-          <td>{{ build.number }}</a></td>
-          <td>{{ build.build_id }}</a></td>
-          <td>{{ build.duration|build_time_to_timedelta }}</a></td>
-          <td>{{ build.url }}</a></td>
-          <td>{{ build.status }}</a></td>
+          <td><a href="{% url 'build_detail' pk=build.pk %}">{{ build.number }}</a></td>
+          <td>{{ build.build_id }}</td>
+          <td>{{ build.duration|build_time_to_timedelta }}</td>
+          <td>{{ build.url }}</td>
+          <td>{{ build.status }}</td>
         </tr>
         {% endfor %}
       </tbody>
