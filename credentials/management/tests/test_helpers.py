@@ -21,7 +21,7 @@ class ImportSshKeyPairTest(TestCase):
         os.unlink(self.public)
         os.unlink(self.private)
 
-    def create_temp_file(self, content ):
+    def create_temp_file(self, content):
         fd, path = mkstemp()
         os.write(fd, content)
         os.close(fd)

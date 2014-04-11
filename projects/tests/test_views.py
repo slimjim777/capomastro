@@ -242,7 +242,8 @@ class ProjectBuildDetailTest(WebTest):
 
         projectbuild = build_project(self.project, queue_build=False)
         build = BuildFactory.create(
-            job=dependency.job, build_id=projectbuild.build_id, phase="FINISHED")
+            job=dependency.job, build_id=projectbuild.build_id,
+            phase="FINISHED")
         ArtifactFactory.create(build=build)
 
         url = reverse(
@@ -257,7 +258,8 @@ class ProjectBuildDetailTest(WebTest):
         form = response.forms["archivebuild-form"]
         form["archive"].select(archive.pk)
 
-        with mock.patch("projects.views.archive_projectbuild") as archive_build_mock:
+        with mock.patch(
+                "projects.views.archive_projectbuild") as archive_build_mock:
             response = form.submit().follow()
 
         archive_build_mock.delay.assert_called_once_with(
