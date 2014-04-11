@@ -27,7 +27,6 @@
           <th>#</th>
           <th>Build Id</th>
           <th>Duration</th>
-          <th>URL</th>
           <th>Result</th>
         </tr>
       </thead>
@@ -37,8 +36,7 @@
           <td>{{ build.number }}</a></td>
           <td><a href="{% build_url build.build_id %}">{{ build.build_id }}</a></td>
           <td>{{ build.duration|build_time_to_timedelta }}</a></td>
-          <td><a href="{{ build.url }}">{{ build.url }}</a></td>
-          <td>{{ build.status }}</a></td>
+          <td><a href="{% url 'build_detail' pk=build.pk %}">{{ build.status }}</a></td>
         </tr>
         {% empty %}
         <tr><td colspan="5">There are no builds for this dependency.</td></tr>

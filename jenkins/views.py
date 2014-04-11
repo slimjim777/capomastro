@@ -110,7 +110,21 @@ class JobTypeDetailView(LoginRequiredMixin, DetailView):
     context_object_name = "jobtype"
 
 
+class BuildDetailView(LoginRequiredMixin, DetailView):
+
+    model = Build
+    context_object_name = "build"
+
+    def get_context_data(self, **kwargs):
+        """
+        Supplement the server with the jobs for this server.
+        """
+        context = super(
+            BuildDetailView, self).get_context_data(**kwargs)
+        return context
+
+
 __all__ = [
     "NotificationHandlerView", "JenkinsServerListView",
     "JenkinsServerDetailView", "JenkinsServerJobBuildsIndexView",
-    "JobTypeDetailView"]
+    "JobTypeDetailView", "BuildDetailView"]
