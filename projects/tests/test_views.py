@@ -262,8 +262,8 @@ class ProjectBuildDetailTest(WebTest):
                 "projects.views.archive_projectbuild") as archive_build_mock:
             response = form.submit().follow()
 
-        archive_build_mock.delay.assert_called_once_with(
-            projectbuild.pk, archive.pk)
+        archive_build_mock.assert_called_once_with(
+            projectbuild, archive)
         self.assertContains(
             response,
             "Archiving for '%s' queued." % projectbuild.build_id)

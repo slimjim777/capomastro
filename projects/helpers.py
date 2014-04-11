@@ -1,6 +1,7 @@
 from django.utils import timezone
 
 from jenkins.tasks import build_job
+from projects.tasks import archive_projectbuild as archive_projectbuild_task
 from projects.models import ProjectDependency
 
 
@@ -53,25 +54,11 @@ def build_project(project, user=None, dependencies=None, queue_build=True):
     return build
 
 
-def get_transport_for_projectbuild(projectbuild, archive):
-    """
-    Returns a transport for a projectbuild to be archived to a specific
-    archive.
-    """
-    policy = archive.get_policy()(projectbuild)
-    transport = archive.get_archiver()(policy, archive)
-    return transport
-
-
-# TODO: It'd be nice if this handled the task, so that a view didn't need to
-# know whether or not there was a delayed task involved.
 def archive_projectbuild(projectbuild, archive):
     """
     Archives the artifacts for a projectbuild.
 
     Requires a projectbuild and a destination archive.
     """
-    transport = get_transport_for_projectbuild(projectbuild, archive)
-    transport.archive()
-    projectbuild.archived = timezone.now()
-    projectbuild.save()
+    archive_projectbuild_task.delay(
+        projectbuild.pk, archive.pk)
