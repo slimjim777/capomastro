@@ -54,6 +54,7 @@ class SshArchiverTest(TestCase):
         mock_target = mock.Mock()
         mock_target.basedir = "/var/www"
         mock_target.host = "archive.example.com"
+        mock_target.username = "capomastro"
         mock_target.ssh_credentials.get_pkey()
         mock_target.ssh_credentials.get_pkey.return_value = mock.Mock()
 
@@ -94,6 +95,7 @@ class SshArchiverTest(TestCase):
             mock.call.client().set_missing_host_key_policy(manager.hostpolicy),
             mock.call.client().connect(
                 'archive.example.com',
+                username="capomastro",
                 pkey=mock_target.ssh_credentials.get_pkey())]
 
         manager.assert_has_calls(expected_calls)
