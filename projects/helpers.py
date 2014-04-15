@@ -44,7 +44,7 @@ def build_project(project, user=None, dependencies=None, queue_build=True):
                   "dependency": dependency.dependency}
         ProjectBuildDependency.objects.create(**kwargs)
         if queue_build:
-            build_dependency(dependency.dependency, build_id=build.build_id)
+            build_dependency(dependency.dependency, build_id=build.build_key)
 
     for dependency in dependencies_not_to_build:
         kwargs = {"projectbuild": build,

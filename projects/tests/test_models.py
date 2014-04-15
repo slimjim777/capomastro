@@ -153,6 +153,14 @@ class ProjectBuildTest(TestCase):
         expected_build_id = timezone.now().strftime("%Y%m%d.2")
         self.assertEqual(expected_build_id, generate_projectbuild_id(build2))
 
+    def test_build_key(self):
+        """
+        The build_key is a UUID for this project build.
+        """
+        build1 = ProjectBuildFactory.create()
+        build2 = ProjectBuildFactory.create(project=build1.project)
+        self.assertNotEqual(build1.build_key, build2.build_key)
+
     def test_instantiation(self):
         """
         We can create ProjectBuilds.
@@ -164,6 +172,7 @@ class ProjectBuildTest(TestCase):
         self.assertIsNone(projectbuild.ended_at)
         self.assertEqual("UNKNOWN", projectbuild.status)
         self.assertEqual("UNKNOWN", projectbuild.phase)
+        self.assertTrue(projectbuild.build_key)
 
     def test_build_id(self):
         """

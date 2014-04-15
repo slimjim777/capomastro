@@ -51,8 +51,10 @@ class ProjectDetailTest(WebTest):
         self.assertEqual(200, response.status_code)
         self.assertEqual(project, response.context["project"])
         self.assertEqual([dependency], list(response.context["dependencies"]))
+
         self.assertEqual(
-            projectbuilds[:5], list(response.context["projectbuilds"]))
+            sorted(projectbuilds[1:], key=lambda x: x.build_id, reverse=True),
+            list(response.context["projectbuilds"]))
 
 
 class ProjectCreateTest(WebTest):
@@ -440,9 +442,9 @@ class InitiateProjectBuildTest(WebTest):
         projectbuild = response.context["projectbuild"]
 
         build_job_mock.delay.assert_has_calls([
-            mock.call(dep1.job.pk, build_id=projectbuild.build_id),
-            mock.call(dep2.job.pk, build_id=projectbuild.build_id),
-            mock.call(dep3.job.pk, build_id=projectbuild.build_id)])
+            mock.call(dep1.job.pk, build_id=projectbuild.build_key),
+            mock.call(dep2.job.pk, build_id=projectbuild.build_key),
+            mock.call(dep3.job.pk, build_id=projectbuild.build_key)])
         self.assertContains(
             response, "Build '%s' queued." % projectbuild.build_id)
 
@@ -468,8 +470,8 @@ class InitiateProjectBuildTest(WebTest):
         projectbuild = response.context["projectbuild"]
 
         build_job_mock.delay.assert_has_calls([
-            mock.call(dep1.job.pk, build_id=projectbuild.build_id),
-            mock.call(dep3.job.pk, build_id=projectbuild.build_id)])
+            mock.call(dep1.job.pk, build_id=projectbuild.build_key),
+            mock.call(dep3.job.pk, build_id=projectbuild.build_key)])
 
     def test_project_build_form_requires_selection(self):
         """

@@ -1,3 +1,5 @@
+import uuid
+
 from django.db import models
 from django.db.models.signals import post_save
 from django.dispatch import receiver, Signal
@@ -119,6 +121,11 @@ class ProjectBuildDependency(models.Model):
             self.dependency.name, self.projectbuild.build_id)
 
 
+def generate_build_key():
+    """Generate a unique key for builds."""
+    return uuid.uuid4().get_hex()
+
+
 @python_2_unicode_compatible
 class ProjectBuild(models.Model):
     """Represents a requested build of a Project."""
@@ -131,12 +138,13 @@ class ProjectBuild(models.Model):
     phase = models.CharField(max_length=25, default="UNKNOWN")
     build_id = models.CharField(max_length=20)
     archived = models.DateTimeField(null=True, blank=True)
+    build_key = models.CharField(max_length=32, default=generate_build_key)
 
     build_dependencies = models.ManyToManyField(
         Build, through=ProjectBuildDependency)
 
     def __str__(self):
-        return self.project.name
+        return "%s %s" % (self.project.name, self.build_key)
 
     def get_current_artifacts(self):
         """
