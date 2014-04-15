@@ -244,7 +244,7 @@ class ProjectBuildDetailTest(WebTest):
 
         projectbuild = build_project(self.project, queue_build=False)
         build = BuildFactory.create(
-            job=dependency.job, build_id=projectbuild.build_id,
+            job=dependency.job, build_id=projectbuild.build_key,
             phase="FINISHED")
         ArtifactFactory.create(build=build)
 

@@ -201,7 +201,7 @@ class ProjectBuildTest(TestCase):
         projectbuild = build_project(self.project, queue_build=False)
 
         build1 = BuildFactory.create(
-            job=dependency1.job, build_id=projectbuild.build_id)
+            job=dependency1.job, build_id=projectbuild.build_key)
 
         build_dependencies = ProjectBuildDependency.objects.filter(
             projectbuild=projectbuild)
@@ -230,7 +230,7 @@ class ProjectBuildTest(TestCase):
 
         for job in [dependency1.job, dependency2.job]:
             BuildFactory.create(
-                job=job, build_id=projectbuild.build_id, phase="FINISHED")
+                job=job, build_id=projectbuild.build_key, phase="FINISHED")
 
         projectbuild = ProjectBuild.objects.get(pk=projectbuild.pk)
         self.assertEqual("SUCCESS", projectbuild.status)
@@ -259,7 +259,7 @@ class ProjectBuildTest(TestCase):
 
         for job in [dependency1.job, dependency2.job]:
             BuildFactory.create(
-                job=job, build_id=projectbuild.build_id, phase="FINISHED")
+                job=job, build_id=projectbuild.build_key, phase="FINISHED")
 
         self.assertEqual(projectbuild, self.projectbuild)
 
@@ -286,7 +286,7 @@ class ProjectBuildTest(TestCase):
         for job in [dependency1.job, dependency2.job]:
             builds.append(
                 BuildFactory.create(
-                    job=job, build_id=projectbuild.build_id,
+                    job=job, build_id=projectbuild.build_key,
                     phase="FINISHED"))
         projectbuild = ProjectBuild.objects.get(pk=projectbuild.pk)
         self.assertEqual("FINISHED", projectbuild.phase)

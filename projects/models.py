@@ -152,7 +152,7 @@ class ProjectBuild(models.Model):
         associated with the builds of the project dependencies for this
         project build.
         """
-        return Artifact.objects.filter(build__build_id=self.build_id)
+        return Artifact.objects.filter(build__build_id=self.build_key)
 
     @property
     def can_be_archived(self):
@@ -204,7 +204,7 @@ def handle_builds_for_projectbuild(sender, created, instance, **kwargs):
     if instance.build_id:
         dependency = ProjectBuildDependency.objects.filter(
             dependency__job=instance.job,
-            projectbuild__build_id=instance.build_id).first()
+            projectbuild__build_key=instance.build_id).first()
         # TODO: This event handler should be split...
         # This is a possible race-condition, if we have multiple dependencies
         # being processed at the same time, then we could miss the status of
