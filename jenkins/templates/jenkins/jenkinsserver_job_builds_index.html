@@ -21,7 +21,6 @@
           <th>#</th>
           <th>Build Id</th>
           <th>Duration</th>
-          <th>URL</th>
           <th>Result</th>
         </tr>
       </thead>
@@ -31,7 +30,6 @@
           <td><a href="{% url 'build_detail' pk=build.pk %}">{{ build.number }}</a></td>
           <td>{{ build.build_id }}</td>
           <td>{{ build.duration|build_time_to_timedelta }}</td>
-          <td>{{ build.url }}</td>
           <td>{{ build.status }}</td>
         </tr>
         {% endfor %}
