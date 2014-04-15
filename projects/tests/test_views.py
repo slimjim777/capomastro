@@ -530,7 +530,7 @@ class ProjectUpdateTest(WebTest):
         self.assertEqual(
             [str(projectdependency1.dependency.pk),
              str(projectdependency2.dependency.pk)],
-            form["dependencies"].value)
+            sorted(form["dependencies"].value))
         self.assertEqual(project.name, form["name"].value)
 
         form["dependencies"].select_multiple(

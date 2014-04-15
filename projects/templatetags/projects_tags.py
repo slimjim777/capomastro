@@ -13,7 +13,7 @@ def build_url(build_id):
     Fetches the ProjectBuild for a given build_id, if any.
     """
     try:
-        build = ProjectBuild.objects.get(build_id=build_id)
+        build = ProjectBuild.objects.get(build_key=build_id)
         return reverse(
             "project_projectbuild_detail",
             kwargs={"project_pk": build.project.pk, "build_pk": build.pk})
