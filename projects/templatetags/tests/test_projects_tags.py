@@ -22,12 +22,12 @@ class BuildUrlTest(TestCase):
 
         projectbuild = build_project(project, queue_build=False)
         build = BuildFactory.create(
-            job=dependency.job, build_id=projectbuild.build_id)
+            job=dependency.job, build_id=projectbuild.build_key)
 
         expected_url = reverse(
             "project_projectbuild_detail",
             kwargs={"project_pk": project.pk, "build_pk": projectbuild.pk})
-        self.assertEqual(expected_url, build_url(build))
+        self.assertEqual(expected_url, build_url(build.build_id))
 
     def test_build_url_with_non_projectbuild(self):
         """
@@ -35,4 +35,4 @@ class BuildUrlTest(TestCase):
         # TODO: This should link to a Build Detail page in the jenkins app.
         """
         build = BuildFactory.create()
-        self.assertEqual("", build_url(build))
+        self.assertEqual("", build_url(build.build_id))

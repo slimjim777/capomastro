@@ -38,8 +38,8 @@ class BuildProjectTest(TestCase):
             [dependency1.pk, dependency2.pk],
             list(build_dependencies.values_list("dependency", flat=True)))
         mock_build_job.delay.assert_has_calls(
-            [mock.call(dependency1.job.pk, build_id=new_build.build_id),
-             mock.call(dependency2.job.pk, build_id=new_build.build_id)])
+            [mock.call(dependency1.job.pk, build_id=new_build.build_key),
+             mock.call(dependency2.job.pk, build_id=new_build.build_key)])
 
     def test_build_project_with_no_queue_build(self):
         """
@@ -71,7 +71,7 @@ class BuildProjectTest(TestCase):
             self.assertIsInstance(new_build, ProjectBuild)
 
         mock_build_job.delay.assert_called_once_with(
-            dependency.job.pk, build_id=new_build.build_id,
+            dependency.job.pk, build_id=new_build.build_key,
             params={"THISVALUE": "mako"})
 
     def test_build_project_with_specified_dependencies(self):
@@ -102,8 +102,8 @@ class BuildProjectTest(TestCase):
             set([x.dependency for x in projectbuild_dependencies.all()]))
 
         mock_build_job.delay.assert_has_calls(
-            [mock.call(dep1.job.pk, build_id=new_build.build_id),
-             mock.call(dep2.job.pk, build_id=new_build.build_id)])
+            [mock.call(dep1.job.pk, build_id=new_build.build_key),
+             mock.call(dep2.job.pk, build_id=new_build.build_key)])
 
     def test_build_project_assigns_user_correctly(self):
         """

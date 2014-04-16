@@ -148,7 +148,6 @@ class ProjectBuildDetailView(LoginRequiredMixin, FormView):
         """
         projectbuild = self.get_object()
         archive = form.cleaned_data["archive"]
-        # TODO: See note in helpers about refactoring the tasks/helpers.
         archive_projectbuild(projectbuild, archive)
         messages.add_message(
             self.request, messages.INFO,
@@ -174,7 +173,7 @@ class ProjectDetailView(LoginRequiredMixin, DetailView):
         context["dependencies"] = ProjectDependency.objects.filter(
             project=context["project"])
         context["projectbuilds"] = ProjectBuild.objects.filter(
-            project=context["project"])[:5]
+            project=context["project"]).order_by("-build_id")[:5]
         return context
 
 
