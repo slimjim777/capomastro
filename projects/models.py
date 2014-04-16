@@ -1,3 +1,5 @@
+import uuid
+
 from django.db import models
 from django.db.models.signals import post_save
 from django.dispatch import receiver, Signal
@@ -119,6 +121,11 @@ class ProjectBuildDependency(models.Model):
             self.dependency.name, self.projectbuild.build_id)
 
 
+def generate_build_key():
+    """Generate a unique key for builds."""
+    return uuid.uuid4().get_hex()
+
+
 @python_2_unicode_compatible
 class ProjectBuild(models.Model):
     """Represents a requested build of a Project."""
@@ -131,12 +138,13 @@ class ProjectBuild(models.Model):
     phase = models.CharField(max_length=25, default="UNKNOWN")
     build_id = models.CharField(max_length=20)
     archived = models.DateTimeField(null=True, blank=True)
+    build_key = models.CharField(max_length=32, default=generate_build_key)
 
     build_dependencies = models.ManyToManyField(
         Build, through=ProjectBuildDependency)
 
     def __str__(self):
-        return self.project.name
+        return "%s %s" % (self.project.name, self.build_key)
 
     def get_current_artifacts(self):
         """
@@ -144,7 +152,7 @@ class ProjectBuild(models.Model):
         associated with the builds of the project dependencies for this
         project build.
         """
-        return Artifact.objects.filter(build__build_id=self.build_id)
+        return Artifact.objects.filter(build__build_id=self.build_key)
 
     @property
     def can_be_archived(self):
@@ -196,7 +204,7 @@ def handle_builds_for_projectbuild(sender, created, instance, **kwargs):
     if instance.build_id:
         dependency = ProjectBuildDependency.objects.filter(
             dependency__job=instance.job,
-            projectbuild__build_id=instance.build_id).first()
+            projectbuild__build_key=instance.build_id).first()
         # TODO: This event handler should be split...
         # This is a possible race-condition, if we have multiple dependencies
         # being processed at the same time, then we could miss the status of
