@@ -13,9 +13,6 @@ class Migration(DataMigration):
         for build in orm.ProjectBuild.objects.filter(build_key=None):
             build.build_key = uuid.uuid4().get_hex() 
             build.save()
-        # Note: Don't use "from appname.models import ModelName". 
-        # Use orm.ModelName to refer to models in this application,
-        # and orm['appname.ModelName'] for models in other applications.
 
     def backwards(self, orm):
         "Write your backwards methods here."
