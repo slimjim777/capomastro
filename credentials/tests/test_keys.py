@@ -1,5 +1,6 @@
-import mock
 from django.test import TestCase
+
+import mock
 
 from credentials.models import SshKeyPair
 
@@ -45,8 +46,8 @@ mzqe8/sSG//s7IsTTwmZLP87A5vv59SXZZzwiyENSEJ+0PE5bNXEww==
             keypair = SshKeyPair(
                 label="testing key", public_key=self.public_key,
                 private_key=self.private_key)
-            rsakey = keypair.get_pkey()
+            keypair.get_pkey()
         self.assertEqual(
-            self.private_key, mock_key.call_args[1]['file_obj'].read())
+            self.private_key, mock_key.call_args[1]["file_obj"].read())
         self.assertEqual(
-            self.public_key, mock_key.call_args[1]['data'])
+            self.public_key, mock_key.call_args[1]["data"])

@@ -5,6 +5,7 @@ from django.db import transaction
 
 from credentials.management.helpers import import_sshkeypair
 
+
 class Command(BaseCommand):
     help = "Import ssh keypair"
     args = "[public key filename] [private key filename] [name]"
@@ -22,7 +23,7 @@ class Command(BaseCommand):
         public_key, private_key, name = args
 
         import_sshkeypair(
-            label, public_key, private_key,
+            name, public_key, private_key,
             update=options["update"], stdout=self.stdout)
 
         transaction.commit_unless_managed()

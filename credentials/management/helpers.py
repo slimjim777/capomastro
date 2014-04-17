@@ -25,4 +25,4 @@ def import_sshkeypair(
                     label=label, public_key=public.read(),
                     private_key=private.read())
                 if stdout:
-                   stdout.write("Key pair created\n")
+                    stdout.write("Key pair created\n")

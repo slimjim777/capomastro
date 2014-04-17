@@ -82,6 +82,7 @@ class SshArchiver(Archiver):
         self.ssh_client.set_missing_host_key_policy(WarningPolicy())
         self.ssh_client.connect(
             self.target.host,
+            username = self.target.username,
             pkey=self.target.ssh_credentials.get_pkey())
         self.sftp_client = SFTPClient.from_transport(
             self.ssh_client.get_transport())

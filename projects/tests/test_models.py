@@ -58,7 +58,6 @@ class DependencyTest(TestCase):
         self.assertIsNone(dependency.get_build_parameters())
 
 
-
 class ProjectDependencyTest(TestCase):
 
     def test_instantiation(self):
@@ -154,6 +153,14 @@ class ProjectBuildTest(TestCase):
         expected_build_id = timezone.now().strftime("%Y%m%d.2")
         self.assertEqual(expected_build_id, generate_projectbuild_id(build2))
 
+    def test_build_key(self):
+        """
+        The build_key is a UUID for this project build.
+        """
+        build1 = ProjectBuildFactory.create()
+        build2 = ProjectBuildFactory.create(project=build1.project)
+        self.assertNotEqual(build1.build_key, build2.build_key)
+
     def test_instantiation(self):
         """
         We can create ProjectBuilds.
@@ -165,6 +172,7 @@ class ProjectBuildTest(TestCase):
         self.assertIsNone(projectbuild.ended_at)
         self.assertEqual("UNKNOWN", projectbuild.status)
         self.assertEqual("UNKNOWN", projectbuild.phase)
+        self.assertTrue(projectbuild.build_key)
 
     def test_build_id(self):
         """
@@ -193,7 +201,7 @@ class ProjectBuildTest(TestCase):
         projectbuild = build_project(self.project, queue_build=False)
 
         build1 = BuildFactory.create(
-            job=dependency1.job, build_id=projectbuild.build_id)
+            job=dependency1.job, build_id=projectbuild.build_key)
 
         build_dependencies = ProjectBuildDependency.objects.filter(
             projectbuild=projectbuild)
@@ -222,7 +230,7 @@ class ProjectBuildTest(TestCase):
 
         for job in [dependency1.job, dependency2.job]:
             BuildFactory.create(
-                job=job, build_id=projectbuild.build_id, phase="FINISHED")
+                job=job, build_id=projectbuild.build_key, phase="FINISHED")
 
         projectbuild = ProjectBuild.objects.get(pk=projectbuild.pk)
         self.assertEqual("SUCCESS", projectbuild.status)
@@ -251,7 +259,7 @@ class ProjectBuildTest(TestCase):
 
         for job in [dependency1.job, dependency2.job]:
             BuildFactory.create(
-                job=job, build_id=projectbuild.build_id, phase="FINISHED")
+                job=job, build_id=projectbuild.build_key, phase="FINISHED")
 
         self.assertEqual(projectbuild, self.projectbuild)
 
@@ -278,7 +286,7 @@ class ProjectBuildTest(TestCase):
         for job in [dependency1.job, dependency2.job]:
             builds.append(
                 BuildFactory.create(
-                    job=job, build_id=projectbuild.build_id,
+                    job=job, build_id=projectbuild.build_key,
                     phase="FINISHED"))
         projectbuild = ProjectBuild.objects.get(pk=projectbuild.pk)
         self.assertEqual("FINISHED", projectbuild.phase)

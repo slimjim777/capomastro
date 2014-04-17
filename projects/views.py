@@ -16,7 +16,7 @@ from projects.forms import (
     ProjectForm, DependencyForm, ProjectBuildForm, ProjectBuildArchiveForm)
 from projects.helpers import build_project, build_dependency
 from projects.utils import get_build_table_for_project
-from projects.tasks import archive_projectbuild
+from projects.helpers import archive_projectbuild
 
 
 class ProjectCreateView(
@@ -148,8 +148,7 @@ class ProjectBuildDetailView(LoginRequiredMixin, FormView):
         """
         projectbuild = self.get_object()
         archive = form.cleaned_data["archive"]
-        # TODO: See note in helpers about refactoring the tasks/helpers.
-        archive_projectbuild.delay(projectbuild.pk, archive.pk)
+        archive_projectbuild(projectbuild, archive)
         messages.add_message(
             self.request, messages.INFO,
             "Archiving for '%s' queued." % projectbuild.build_id)
@@ -174,7 +173,7 @@ class ProjectDetailView(LoginRequiredMixin, DetailView):
         context["dependencies"] = ProjectDependency.objects.filter(
             project=context["project"])
         context["projectbuilds"] = ProjectBuild.objects.filter(
-            project=context["project"])[:5]
+            project=context["project"]).order_by("-build_id")[:5]
         return context
 
 

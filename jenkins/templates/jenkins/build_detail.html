@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% load bootstrap3 %}
+{% load jenkins_tags %}
+
+{% block page_title %}Build {{ build.number }} {{ build.build_id }}{% endblock %}
+{% block page_class %}build{% endblock %}
+
+{% block content %}
+<div class="container">
+  <div class="row">
+    <div>
+      <h2>Build {{ build.number }} {{ build.build_id }}</h2>
+    </div>
+  </div>
+  <div class="row">
+    <h3>Jobs</h3>
+    <table class="table table-striped">
+      <tbody>
+        <tr><th>Duration</th><td>{{ build.duration|build_time_to_timedelta }}</td></tr>
+        <tr><th>Phase</th><td>{{ build.phase }}</td></tr>
+        <tr><th>Status</th><td>{{ build.status }}</td></tr>
+        <tr><th>Server</th><td><a href="{% url 'jenkinsserver_detail' pk=build.job.server.pk %}">{{ build.job.server }}</a></td></tr>
+        <tr><th>Job</th><td><a href="{% url 'jenkinsserver_job_builds_index' server_pk=build.job.server.pk job_pk=build.job.pk %}">{{ build.job }}</a></td></tr>
+        <tr><th>Jenkins URL</th><td><a href="{{ build.url }}">{{ build.url }}</a></td></th></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div>
+    <h3>Console</h3>
+    <pre>{{ build.console_log }}</pre>
+  </div>
+</div>
+{% endblock %}

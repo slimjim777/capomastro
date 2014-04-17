@@ -5,8 +5,7 @@ import mock
 from projects.models import (
     ProjectBuild, ProjectDependency, ProjectBuildDependency)
 from projects.helpers import (
-    build_project, build_dependency, archive_projectbuild,
-    get_transport_for_projectbuild)
+    build_project, build_dependency, archive_projectbuild)
 from .factories import ProjectFactory, DependencyFactory
 from jenkins.tests.factories import BuildFactory, ArtifactFactory
 from archives.tests.factories import ArchiveFactory
@@ -39,8 +38,8 @@ class BuildProjectTest(TestCase):
             [dependency1.pk, dependency2.pk],
             list(build_dependencies.values_list("dependency", flat=True)))
         mock_build_job.delay.assert_has_calls(
-            [mock.call(dependency1.job.pk, build_id=new_build.build_id),
-             mock.call(dependency2.job.pk, build_id=new_build.build_id)])
+            [mock.call(dependency1.job.pk, build_id=new_build.build_key),
+             mock.call(dependency2.job.pk, build_id=new_build.build_key)])
 
     def test_build_project_with_no_queue_build(self):
         """
@@ -72,7 +71,7 @@ class BuildProjectTest(TestCase):
             self.assertIsInstance(new_build, ProjectBuild)
 
         mock_build_job.delay.assert_called_once_with(
-            dependency.job.pk, build_id=new_build.build_id,
+            dependency.job.pk, build_id=new_build.build_key,
             params={"THISVALUE": "mako"})
 
     def test_build_project_with_specified_dependencies(self):
@@ -103,8 +102,8 @@ class BuildProjectTest(TestCase):
             set([x.dependency for x in projectbuild_dependencies.all()]))
 
         mock_build_job.delay.assert_has_calls(
-            [mock.call(dep1.job.pk, build_id=new_build.build_id),
-             mock.call(dep2.job.pk, build_id=new_build.build_id)])
+            [mock.call(dep1.job.pk, build_id=new_build.build_key),
+             mock.call(dep2.job.pk, build_id=new_build.build_key)])
 
     def test_build_project_assigns_user_correctly(self):
         """
@@ -164,33 +163,10 @@ class BuildDependencyTest(TestCase):
 
 class ArchiveProjectBuildTest(TestCase):
 
-    def test_get_transport_for_projectbuild(self):
-        """
-        get_transport_for_projectbuild returns an Archiver ready to archive a
-        project build.
-        """
-        archive = ArchiveFactory.create()
-        project = ProjectFactory.create()
-        dependency = DependencyFactory.create()
-        ProjectDependency.objects.create(
-            project=project, dependency=dependency)
-
-        projectbuild = build_project(project, queue_build=False)
-        mock_policy = mock.Mock()
-
-        with mock.patch.multiple(
-                archive, get_archiver=mock.DEFAULT,
-                get_policy=mock.DEFAULT) as mock_archive:
-            mock_archive["get_policy"].return_value = mock_policy
-            get_transport_for_projectbuild(projectbuild, archive)
-
-        mock_policy.assert_called_once_with(projectbuild)
-        mock_archive["get_archiver"].return_value.assert_called_once_with(
-            mock_policy.return_value, archive)
-
     def test_archive_projectbuild(self):
         """
-        Archive project build should create an archiver and archive it.
+        The archive_projectbuild helper should kick off the task to archive the
+        project.
         """
         archive = ArchiveFactory.create()
         project = ProjectFactory.create()
@@ -199,13 +175,6 @@ class ArchiveProjectBuildTest(TestCase):
             project=project, dependency=dependency)
 
         projectbuild = build_project(project, queue_build=False)
-        build = BuildFactory.create(
-            job=dependency.job, build_id=projectbuild.build_id)
-        ArtifactFactory.create_batch(3, build=build)
-
-        with mock.patch.object(archive, "get_archiver") as mock_archive:
+        with mock.patch("projects.helpers.archive_projectbuild_task") as mock_task:
             archive_projectbuild(projectbuild, archive)
-
-        mock_archive.return_value.return_value.assert_has_calls(
-            [mock.call.archive()])
-        self.assertTrue(projectbuild.archived)
+        mock_task.delay.assert_called_once_with(projectbuild.pk, archive.pk)
