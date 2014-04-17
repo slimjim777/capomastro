@@ -1,7 +1,8 @@
-celery==3.1.9
+celery==3.1.11
 Django==1.6.2
 django-bootstrap3==3.1.0
 django-braces==1.4.0
+django-celery==3.1.10
 djangorestframework==2.3.13
 gunicorn==18.0
 jenkinsapi==0.2.18
