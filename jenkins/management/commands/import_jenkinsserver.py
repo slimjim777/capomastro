@@ -22,10 +22,10 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         if len(args) != 4:
             raise CommandError("must provide all parameters")
-        name, url, username, password, remote = args
+        name, url, username, password = args
 
         import_jenkinsserver(
-            name, url, username, password, remote,
-            update=options["update"], stdout=self.stdout)
+            name, url, username, password, update=options["update"],
+            stdout=self.stdout)
 
         transaction.commit_unless_managed()
