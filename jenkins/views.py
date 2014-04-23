@@ -18,12 +18,12 @@ class NotificationHandlerView(CsrfExemptMixin, View):
         """
         Attempt to locate the remote server for this request.
         """
-        remote_addr = request.META["REMOTE_ADDR"]
+        server_pk = request.GET.get("server")
         try:
-            return JenkinsServer.objects.get(remote_addr=remote_addr)
+            return JenkinsServer.objects.get(pk=server_pk)
         except JenkinsServer.DoesNotExist:
             logging.warn(
-                "Could not find server with REMOTE_ADDR: %s" % remote_addr)
+                "Could not find server with Pk: %s" % server_pk)
 
     def post(self, request, *args, **kwargs):
         """

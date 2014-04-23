@@ -22,14 +22,15 @@ class NotificationHandlerTest(TestCase):
         self.server = JenkinsServerFactory.create()
         self.job = JobFactory(server=self.server, name="mytestjob")
 
-    def _get_response_with_data(self, data, remote_addr=None):
+    def _get_response_with_data(self, data, server_pk=None):
+        server_pk = server_pk or self.server.pk
         request = self.factory.post(
-            "/jenkins/notifications", content_type="application/json",
-            data=json.dumps(data),
-            REMOTE_ADDR=remote_addr or self.server.remote_addr)
+            "/jenkins/notifications?server=%d" % server_pk,
+            content_type="application/json",
+            data=json.dumps(data))
         return self.view(request)
 
-    def test_handle_notification_with_unknown_remote_addr(self):
+    def test_handle_notification_with_unknown_server_pk(self):
         """
         If we can't find the JenkinsServer using the remote_addr supplied in
         the request we should get a 412 response and log this.
@@ -37,10 +38,10 @@ class NotificationHandlerTest(TestCase):
         notification = {}
         with mock.patch("jenkins.views.logging") as mock_logging:
             response = self._get_response_with_data(
-                notification, remote_addr="127.0.0.1")
+                notification, 5)
             self.assertEqual(412, response.status_code)
             mock_logging.warn.assert_called_once_with(
-                "Could not find server with REMOTE_ADDR: 127.0.0.1")
+                "Could not find server with Pk: 5")
 
     def test_handle_notification_with_unknown_job(self):
         """

@@ -7,7 +7,7 @@ import mock
 from jenkins.utils import (
     get_notifications_url, DefaultSettings, get_job_xml_for_upload,
     get_context_for_template, generate_job_name)
-from .factories import JobFactory, JobTypeFactory
+from .factories import JobFactory, JobTypeFactory, JenkinsServerFactory
 
 
 class NotificationUrlTest(SimpleTestCase):
@@ -17,9 +17,10 @@ class NotificationUrlTest(SimpleTestCase):
         get_notifications_url should reverse the notification url and return a
         complete HTTP URL from the base provided.
         """
+        server = JenkinsServerFactory.create()
         self.assertEqual(
-            "http://example.com/jenkins/notifications/",
-            get_notifications_url("http://example.com/"))
+            "http://example.com/jenkins/notifications/?server=%d" % server.pk,
+            get_notifications_url("http://example.com/", server))
 
 
 class DefaultSettingsTest(SimpleTestCase):
@@ -55,7 +56,7 @@ class DefaultSettingsTest(SimpleTestCase):
         self.assertIsNone(settings.get_value_or_none("MY_VALUE"))
 
 
-class GetContextForTemplate(SimpleTestCase):
+class GetContextForTemplate(TestCase):
 
     @override_settings(NOTIFICATION_HOST="http://example.com")
     def test_get_context_for_template(self):
@@ -65,11 +66,12 @@ class GetContextForTemplate(SimpleTestCase):
         config.xml.
         """
         job = JobFactory.create()
-        context = get_context_for_template(job)
+        server = JenkinsServerFactory.create()
+        context = get_context_for_template(job, server)
 
         self.assertEqual(job, context.get("job"))
         self.assertEqual(
-            "http://example.com/jenkins/notifications/",
+            "http://example.com/jenkins/notifications/?server=%d" % server.pk,
             context.get("notifications_url"))
 
 template_config = """
@@ -114,8 +116,9 @@ class GetTemplatedJobTest(TestCase):
         """
         jobtype = JobTypeFactory.create(config_xml=template_config)
         job = JobFactory.create(jobtype=jobtype)
-        xml_for_upload = get_job_xml_for_upload(job)
-        expected_url = get_notifications_url("http://example.com/")
+        server = JenkinsServerFactory.create()
+        xml_for_upload = get_job_xml_for_upload(job, server)
+        expected_url = get_notifications_url("http://example.com/", server)
         self.assertIn(job.jobtype.description, xml_for_upload)
         self.assertIn(expected_url, xml_for_upload)
 
@@ -126,9 +129,10 @@ class GetTemplatedJobTest(TestCase):
 
         "processing instruction can not have PITarget with reserveld xml"
         """
+        server = JenkinsServerFactory.create()
         jobtype = JobTypeFactory.create(config_xml="\ntesting")
         job = JobFactory.create(jobtype=jobtype)
-        self.assertEqual("testing", get_job_xml_for_upload(job))
+        self.assertEqual("testing", get_job_xml_for_upload(job, server))
 
 
 class GenerateNameJobTest(TestCase):

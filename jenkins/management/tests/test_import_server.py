@@ -19,13 +19,12 @@ class ImportJenkinsServerTest(TestCase):
         stdout = StringIO()
         import_jenkinsserver(
             "server1", "http://example.com/", "admin", "testing",
-            "192.168.1.2", stdout=stdout)
+            stdout=stdout)
 
         server = JenkinsServer.objects.get(name="server1")
         self.assertEqual("http://example.com/", server.url)
         self.assertEqual("admin", server.username)
         self.assertEqual("testing", server.password)
-        self.assertEqual("192.168.1.2", server.remote_addr)
 
         self.assertEqual("Server created\n", stdout.getvalue())
 
@@ -36,9 +35,9 @@ class ImportJenkinsServerTest(TestCase):
         server = JenkinsServerFactory.create(
             name="testing", url="http://example.com/")
         with self.assertRaises(CommandError) as cm:
-          import_jenkinsserver(
-              "testing", "http://example.com/2", "admin",
-              "password", "192.168.2.2")
+            import_jenkinsserver(
+                "testing", "http://example.com/2", "admin",
+                "password")
 
         self.assertEqual("Server already exists", str(cm.exception))
 
@@ -46,7 +45,6 @@ class ImportJenkinsServerTest(TestCase):
         self.assertEqual("http://example.com/", server.url)
         self.assertEqual("root", server.username)
         self.assertEqual("testing", server.password)
-        self.assertEqual("192.168.50.201", server.remote_addr)
 
     def test_import_jenkinsserver_updates_existing_server(self):
         """
@@ -57,11 +55,10 @@ class ImportJenkinsServerTest(TestCase):
         server = JenkinsServerFactory.create()
         import_jenkinsserver(
             server.name, "http://www1.example.com/", "admin", "secret",
-            "192.168.2.2", update=True, stdout=stdout)
+            update=True, stdout=stdout)
 
         server = JenkinsServer.objects.get(name=server.name)
         self.assertEqual("http://www1.example.com/", server.url)
         self.assertEqual("admin", server.username)
         self.assertEqual("secret", server.password)
-        self.assertEqual("192.168.2.2", server.remote_addr)
         self.assertEqual("Server updated\n", stdout.getvalue())
