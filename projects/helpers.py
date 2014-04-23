@@ -1,6 +1,7 @@
 from django.utils import timezone
 
 from jenkins.tasks import build_job
+from jenkins.models import Build
 from projects.tasks import archive_projectbuild as archive_projectbuild_task
 from projects.models import ProjectDependency
 
@@ -62,3 +63,12 @@ def archive_projectbuild(projectbuild, archive):
     """
     archive_projectbuild_task.delay(
         projectbuild.pk, archive.pk)
+
+
+def is_dependency_building(dependency):
+    """
+    Returns True if we believe this dependency is currently being built on a
+    server.
+    """
+    return Build.objects.filter(
+        job=dependency.job, phase="STARTED").exists()
