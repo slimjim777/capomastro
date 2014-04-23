@@ -14,8 +14,7 @@ from projects.models import (
     ProjectBuildDependency)
 from projects.forms import (
     ProjectForm, DependencyForm, ProjectBuildForm, ProjectBuildArchiveForm)
-from projects.helpers import (
-    build_project, build_dependency, is_dependency_building)
+from projects.helpers import build_project, build_dependency
 from projects.utils import get_build_table_for_project
 from projects.helpers import archive_projectbuild
 
@@ -213,7 +212,7 @@ class DependencyDetailView(LoginRequiredMixin, DetailView):
             job=context["dependency"].job)
         context["projects"] = Project.objects.filter(
             dependencies=context["dependency"])
-        if is_dependency_building(context["dependency"]):
+        if context["dependency"].is_building:
             messages.add_message(
                 self.request, messages.INFO,
                     "Dependency currently building")

@@ -5,8 +5,7 @@ import mock
 from projects.models import (
     ProjectBuild, ProjectDependency, ProjectBuildDependency)
 from projects.helpers import (
-    build_project, build_dependency, archive_projectbuild,
-    is_dependency_building)
+    build_project, build_dependency, archive_projectbuild)
 from .factories import ProjectFactory, DependencyFactory
 from jenkins.tests.factories import BuildFactory, ArtifactFactory
 from archives.tests.factories import ArchiveFactory
@@ -179,17 +178,3 @@ class ArchiveProjectBuildTest(TestCase):
         with mock.patch("projects.helpers.archive_projectbuild_task") as mock_task:
             archive_projectbuild(projectbuild, archive)
         mock_task.delay.assert_called_once_with(projectbuild.pk, archive.pk)
-
-
-class IsDependencyBuildingTest(TestCase):
-
-    def test_is_dependency_building(self):
-        """
-        is_dependency_building should return True if we have an active build for
-        this dependency in the works.
-        """
-        dependency = DependencyFactory.create()
-        self.assertFalse(is_dependency_building(dependency))
-
-        build = BuildFactory.create(job=dependency.job)
-        self.assertTrue(is_dependency_building(dependency))

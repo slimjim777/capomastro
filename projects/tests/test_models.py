@@ -57,6 +57,17 @@ class DependencyTest(TestCase):
         dependency = DependencyFactory.create(parameters=None)
         self.assertIsNone(dependency.get_build_parameters())
 
+    def test_is_dependency_building(self):
+        """
+        is_building should return True if we have an active build for
+        this dependency in the works.
+        """
+        dependency = DependencyFactory.create()
+        self.assertFalse(dependency.is_building)
+
+        build = BuildFactory.create(job=dependency.job)
+        self.assertTrue(dependency.is_building)
+
 
 class ProjectDependencyTest(TestCase):
 
