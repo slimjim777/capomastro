@@ -49,7 +49,7 @@ def import_jobtype(jobtype, jobfile, update=False, stdout=None):
 
 
 def import_jenkinsserver(
-        name, url, username, password, remote, update=False, stdout=None):
+        name, url, username, password, update=False, stdout=None):
     """
     Create a JenkinsServer or update the details.
     """
@@ -59,7 +59,6 @@ def import_jenkinsserver(
             existing.url = url
             existing.username = username
             existing.password = password
-            existing.remote_addr = remote
             existing.save()
             if stdout:
                 stdout.write("Server updated\n")
@@ -67,7 +66,6 @@ def import_jenkinsserver(
             raise CommandError("Server already exists")
     except JenkinsServer.DoesNotExist:
         JenkinsServer.objects.create(
-            name=name, url=url, username=username, password=password,
-            remote_addr=remote)
+            name=name, url=url, username=username, password=password)
         if stdout:
-           stdout.write("Server created\n")
+            stdout.write("Server created\n")

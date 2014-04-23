@@ -54,14 +54,15 @@ class BuildJobTaskTest(TestCase):
         request.
         """
         job = JobFactory.create(server=self.server)
-        with mock.patch("jenkins.models.Jenkins", spec=jenkins.Jenkins) as mock_jenkins:
+        with mock.patch(
+                "jenkins.models.Jenkins",
+                spec=jenkins.Jenkins) as mock_jenkins:
             build_job(job.pk, params={"MYTEST": "500"})
 
         mock_jenkins.assert_called_with(
             self.server.url, username=u"root", password=u"testing")
         mock_jenkins.return_value.build_job.assert_called_with(
             job.name, params={"MYTEST": "500"})
-
 
     @override_settings(CELERY_ALWAYS_EAGER=True)
     def test_build_job_with_params_and_build_id(self):
@@ -70,7 +71,9 @@ class BuildJobTaskTest(TestCase):
         parameters.
         """
         job = JobFactory.create(server=self.server)
-        with mock.patch("jenkins.models.Jenkins", spec=jenkins.Jenkins) as mock_jenkins:
+        with mock.patch(
+                "jenkins.models.Jenkins",
+                spec=jenkins.Jenkins) as mock_jenkins:
             build_job(job.pk, "20140312.1", params={"MYTEST": "500"})
 
         mock_jenkins.assert_called_with(
@@ -124,7 +127,8 @@ class CreateJobTaskTest(TestCase):
             "testing",
             job_xml.replace(
                 "{{ notifications_url }}",
-                "http://example.com/jenkins/notifications/").strip())
+                "http://example.com/jenkins/notifications/?server=%d" %
+                job.server.pk).strip())
 
     @override_settings(
         CELERY_ALWAYS_EAGER=True, NOTIFICATION_HOST="http://example.com")
@@ -151,4 +155,5 @@ class CreateJobTaskTest(TestCase):
         mock_apijob.update_config.assert_called_with(
             job_xml.replace(
                 "{{ notifications_url }}",
-                "http://example.com/jenkins/notifications/").strip())
+                "http://example.com/jenkins/notifications/?server=%d" %
+                job.server.pk).strip())

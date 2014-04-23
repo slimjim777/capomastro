@@ -11,7 +11,6 @@ class JenkinsServerFactory(factory.DjangoModelFactory):
     url = factory.Sequence(lambda n: "http://www%d.example.com/" % n)
     username = "root"
     password = "testing"
-    remote_addr = "192.168.50.201"
 
 
 class JobTypeFactory(factory.DjangoModelFactory):

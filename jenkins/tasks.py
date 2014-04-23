@@ -35,7 +35,7 @@ def push_job_to_jenkins(job_pk):
     Create or update a job in the server with the config.
     """
     job = Job.objects.get(pk=job_pk)
-    xml = get_job_xml_for_upload(job)
+    xml = get_job_xml_for_upload(job, job.server)
     client = job.server.get_client()
 
     if client.has_job(job.name):

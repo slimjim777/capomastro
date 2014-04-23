@@ -8,32 +8,34 @@ from urlparse import urljoin
 from django.core.urlresolvers import reverse
 
 
-def get_notifications_url(base):
+def get_notifications_url(base, server):
     """
     Returns the full URL for notifications given a base.
     """
-    return urljoin(base, reverse("jenkins_notifications"))
+    url = urljoin(base, reverse("jenkins_notifications"))
+    return url + "?server=%d" % server.pk
 
 
-def get_context_for_template(job):
+def get_context_for_template(job, server):
     """
     Returns a Context for the Job XML templating.
     """
     defaults = DefaultSettings({"NOTIFICATION_HOST": "http://localhost"})
+    url = get_notifications_url(defaults.NOTIFICATION_HOST, server)
     context_vars = {
-        "notifications_url": get_notifications_url(defaults.NOTIFICATION_HOST),
+        "notifications_url": url,
         "job": job,
         "jobtype": job.jobtype,
     }
     return Context(context_vars)
 
 
-def get_job_xml_for_upload(job):
+def get_job_xml_for_upload(job, server):
     """
     Return config_xml run through the template mechanism.
     """
     template = Template(job.jobtype.config_xml)
-    context = get_context_for_template(job)
+    context = get_context_for_template(job, server)
     # We need to strip leading/trailing whitespace in order to avoid having the
     # <?xml> PI not in the first line of the document.
     return template.render(context).strip()
