@@ -53,6 +53,15 @@ class Dependency(models.Model):
             build_parameters[key.strip()] = value.strip()
         return build_parameters
 
+    @property
+    def is_building(self):
+        """
+        Returns True if we believe this dependency is currently being built on a
+        server.
+        """
+        return Build.objects.filter(
+            job=self.job, phase="STARTED").exists()
+
 
 @python_2_unicode_compatible
 class ProjectDependency(models.Model):

@@ -360,6 +360,19 @@ class DependencyDetailTest(WebTest):
 
         self.assertEqual(dependency, response.context["dependency"])
         self.assertEqual([project], list(response.context["projects"]))
+        self.assertNotContains(response, "Dependency currently building")
+
+    def test_dependency_detail_with_currently_building(self):
+        """
+        If the Dependency is currently building, we should get an info message
+        with this in the page.
+        """
+        dependency = DependencyFactory.create()
+        BuildFactory.create(job=dependency.job, status="STARTED")
+        url = reverse("dependency_detail", kwargs={"pk": dependency.pk})
+        response = self.app.get(url, user="testing")
+
+        self.assertContains(response, "Dependency currently building")
 
     def test_dependency_build(self):
         """

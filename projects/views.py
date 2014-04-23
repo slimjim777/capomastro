@@ -212,6 +212,10 @@ class DependencyDetailView(LoginRequiredMixin, DetailView):
             job=context["dependency"].job)
         context["projects"] = Project.objects.filter(
             dependencies=context["dependency"])
+        if context["dependency"].is_building:
+            messages.add_message(
+                self.request, messages.INFO,
+                    "Dependency currently building")
         return context
 
     def post(self, request, pk):
