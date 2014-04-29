@@ -1,55 +1,14 @@
 from django.test import TestCase
 from django.test.utils import override_settings
 
+from celery import shared_task
 import mock
-import jenkinsapi.job
 
-from jenkins.helpers import import_build_for_job, create_job
-from jenkins.models import Build, Job
+from jenkins.helpers import postprocess_build, create_job
+from jenkins.models import Job
+from jenkins.tasks import import_build_for_job
 from .factories import (
     JobFactory, BuildFactory, JobTypeFactory, JenkinsServerFactory)
-
-
-class ImportBuildForJobTest(TestCase):
-
-    # TODO: Improve testing of artifacts.
-
-    @override_settings(NOTIFICATION_HOST="http://example.com")
-    def test_import_build_for_job(self):
-        """
-        Import build for job should update the build with the details fetched
-        from the Jenkins server, including fetching the artifact details.
-        """
-        job = JobFactory.create()
-        build = BuildFactory.create(job=job, number=5)
-
-        mock_job = mock.Mock(spec=jenkinsapi.job.Job)
-        mock_build = mock.Mock(_data={"duration": 1000})
-
-        mock_job.get_build.return_value = mock_build
-
-        mock_build.get_status.return_value = "SUCCESS"
-        mock_build.get_result_url.return_value = "http://localhost/123"
-        mock_build.get_console.return_value = "This is the log"
-        mock_build.get_artifacts.return_value = []
-
-        with mock.patch("jenkins.helpers.logging") as mock_logging:
-            with mock.patch("jenkins.models.Jenkins") as mock_jenkins:
-                mock_jenkins.return_value.get_job.return_value = mock_job
-                import_build_for_job(job.pk, 5)
-
-        mock_jenkins.assert_called_with(
-            job.server.url, username=u"root", password=u"testing")
-
-        mock_logging.assert_has_calls(
-            [mock.call.info("Located job %s\n" % job),
-             mock.call.info("Using server at %s\n" % job.server.url),
-             mock.call.info("Processing build details for %s #5" % job)])
-
-        build = Build.objects.get(pk=build.pk)
-        self.assertEqual(1000, build.duration)
-        self.assertEqual("SUCCESS", build.status)
-        self.assertEqual("This is the log", build.console_log)
 
 
 class CreateJobTest(TestCase):
@@ -68,3 +27,44 @@ class CreateJobTest(TestCase):
 
         job = Job.objects.get(jobtype=jobtype, server=server)
         self.assertEqual("known name", job.name)
+
+
+@shared_task
+def postbuild_testing_hook(build_pk):
+    return "Testing"
+
+
+class PostProcessBuildTest(TestCase):
+
+    @override_settings(CELERY_ALWAYS_EAGER=True, POST_BUILD_TASKS=[])
+    def test_postprocess_build(self):
+        """
+        postprocess_build should trigger the importing of the build's artifacts,
+        and then schedule any other post-build tasks.
+        """
+        job = JobFactory.create()
+        build = BuildFactory.create(job=job)
+        with mock.patch("jenkins.helpers.chain") as chain_mock:
+             postprocess_build(build)
+
+        chain_mock.assert_called_once_with(
+            import_build_for_job.s(build.pk))
+        chain_mock.return_value.apply_async.assert_called_once()
+
+    @override_settings(
+        CELERY_ALWAYS_EAGER=True, POST_BUILD_TASKS=[postbuild_testing_hook])
+    def test_postprocess_build_with_additional_postprocess_tasks(self):
+        """
+        If settings.POST_BUILD_TASKS has a list of additional tasks to be
+        executed after a build completes, then we should chain them after we've
+        imported the artifacts for the build.
+        """
+        job = JobFactory.create()
+        build = BuildFactory.create(job=job)
+        with mock.patch("jenkins.helpers.chain") as chain_mock:
+            postprocess_build(build)
+
+        chain_mock.assert_called_once_with(
+            import_build_for_job.s(build.pk),
+            postbuild_testing_hook.s())
+        chain_mock.return_value.apply_async.assert_called_once()

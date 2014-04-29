@@ -111,10 +111,10 @@ REST_FRAMEWORK = {
     ]
 }
 
-
-
-
 try:
     from local_settings import *  # noqa
 except ImportError, e:
     pass
+
+from archives.tasks import process_build_artifacts
+POST_BUILD_TASKS=[process_build_artifacts]

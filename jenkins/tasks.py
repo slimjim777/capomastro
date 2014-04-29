@@ -1,16 +1,12 @@
+import logging
+
 from celery.utils.log import get_task_logger
 from celery import shared_task
 
-from jenkins.helpers import import_build_for_job
-from jenkins.models import Job
+from jenkins.models import Job, Build, Artifact
 from jenkins.utils import get_job_xml_for_upload
 
 logger = get_task_logger(__name__)
-
-
-@shared_task
-def import_build(job_id, build_number):
-    import_build_for_job(job_id, build_number)
 
 
 @shared_task
@@ -43,3 +39,41 @@ def push_job_to_jenkins(job_pk):
         job.update_config(xml)
     else:
         client.create_job(job.name, xml)
+
+
+@shared_task
+def import_build_for_job(build_pk):
+    """
+    Import a build for a job.
+    """
+    build = Build.objects.get(pk=build_pk)
+    logging.info("Located job %s\n" % build.job)
+
+    client = build.job.server.get_client()
+    logging.info("Using server at %s\n" % build.job.server.url)
+
+    jenkins_job = client.get_job(build.job.name)
+    build_result = jenkins_job.get_build(build.number)
+
+    # TODO: Shouldn't access _data here.
+    build_details = {
+        "status": build_result.get_status(),
+        # TODO: What should we do with this ID we get from Jenkins?
+        # Discard? or only set it if we don't have one?
+        # "build_id": build_result._data["id"],
+        "duration": build_result._data["duration"],
+        "url": build_result.get_result_url(),
+        "console_log": build_result.get_console(),
+    }
+    logging.info("Processing build details for %s #%d" % (build.job, build.number))
+    Build.objects.filter(job=build.job, number=build.number).update(**build_details)
+    build = Build.objects.get(job=build.job, number=build.number)
+    for artifact in build_result.get_artifacts():
+        artifact_details = {
+            "filename": artifact.filename,
+            "url": artifact.url,
+            "build": build
+        }
+        logging.info("%s" % artifact_details)
+        Artifact.objects.create(**artifact_details)
+    return build_pk

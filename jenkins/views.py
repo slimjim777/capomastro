@@ -7,7 +7,7 @@ from django.views.generic import View, ListView, DetailView, TemplateView
 from braces.views import LoginRequiredMixin, CsrfExemptMixin
 
 from jenkins.models import JenkinsServer, Build, Job, JobType
-from jenkins.tasks import import_build
+from jenkins.helpers import postprocess_build
 
 
 class NotificationHandlerView(CsrfExemptMixin, View):
@@ -56,7 +56,7 @@ class NotificationHandlerView(CsrfExemptMixin, View):
             try:
                 existing_build = job.build_set.get(number=build_number)
             except Build.DoesNotExist:
-                job.build_set.create(
+                existing_build = job.build_set.create(
                     number=build_number, build_id=build_id, phase=build_phase,
                     status=build_status, url=build_url)
             else:
@@ -64,8 +64,8 @@ class NotificationHandlerView(CsrfExemptMixin, View):
                 existing_build.phase = build_phase
                 existing_build.url = build_url
                 existing_build.save()
+            postprocess_build(existing_build)
 
-            import_build.delay(job.pk, build_number)
         return HttpResponse(status=200)
 
 

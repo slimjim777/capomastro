@@ -2,16 +2,12 @@ import uuid
 
 from django.db import models
 from django.db.models.signals import post_save
-from django.dispatch import receiver, Signal
+from django.dispatch import receiver
 from django.contrib.auth.models import User
 from django.utils import timezone
 from django.utils.encoding import python_2_unicode_compatible
 
 from jenkins.models import Job, Build, Artifact
-
-
-# Signals
-projectbuild_finished = Signal(providing_args=["projectbuild"])
 
 
 @python_2_unicode_compatible
@@ -240,7 +236,5 @@ def handle_builds_for_projectbuild(sender, created, instance, **kwargs):
                 if projectbuild.phase == "FINISHED":
                     projectbuild.ended_at = timezone.now()
                     projectbuild.save()
-                    projectbuild_finished.send(
-                        sender=ProjectBuild, projectbuild=projectbuild)
-            if updated:
+            elif updated:
                 projectbuild.save()

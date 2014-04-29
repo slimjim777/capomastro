@@ -2,11 +2,12 @@ from django.test import TestCase
 from django.test.utils import override_settings
 
 import mock
-from jenkinsapi import jenkins
+import jenkinsapi
 
-from jenkins.tasks import build_job, push_job_to_jenkins, import_build
+from jenkins.models import Build
+from jenkins.tasks import build_job, push_job_to_jenkins, import_build_for_job
 from .factories import (
-    JobFactory, JenkinsServerFactory, JobTypeFactory)
+    JobFactory, JenkinsServerFactory, JobTypeFactory, BuildFactory)
 
 
 class BuildJobTaskTest(TestCase):
@@ -23,7 +24,7 @@ class BuildJobTaskTest(TestCase):
         job = JobFactory.create(server=self.server)
         with mock.patch(
                 "jenkins.models.Jenkins",
-                spec=jenkins.Jenkins) as mock_jenkins:
+                spec=jenkinsapi.jenkins.Jenkins) as mock_jenkins:
             build_job(job.pk)
 
         mock_jenkins.assert_called_with(
@@ -39,7 +40,7 @@ class BuildJobTaskTest(TestCase):
         job = JobFactory.create(server=self.server)
         with mock.patch(
                 "jenkins.models.Jenkins",
-                spec=jenkins.Jenkins) as mock_jenkins:
+                spec=jenkinsapi.jenkins.Jenkins) as mock_jenkins:
             build_job(job.pk, "20140312.1")
 
         mock_jenkins.assert_called_with(
@@ -56,7 +57,7 @@ class BuildJobTaskTest(TestCase):
         job = JobFactory.create(server=self.server)
         with mock.patch(
                 "jenkins.models.Jenkins",
-                spec=jenkins.Jenkins) as mock_jenkins:
+                spec=jenkinsapi.jenkins.Jenkins) as mock_jenkins:
             build_job(job.pk, params={"MYTEST": "500"})
 
         mock_jenkins.assert_called_with(
@@ -73,7 +74,7 @@ class BuildJobTaskTest(TestCase):
         job = JobFactory.create(server=self.server)
         with mock.patch(
                 "jenkins.models.Jenkins",
-                spec=jenkins.Jenkins) as mock_jenkins:
+                spec=jenkinsapi.jenkins.Jenkins) as mock_jenkins:
             build_job(job.pk, "20140312.1", params={"MYTEST": "500"})
 
         mock_jenkins.assert_called_with(
@@ -84,17 +85,44 @@ class BuildJobTaskTest(TestCase):
 
 class ImportBuildTaskTest(TestCase):
 
-    @override_settings(CELERY_ALWAYS_EAGER=True)
-    def test_import_build(self):
+    @override_settings(
+        CELERY_ALWAYS_EAGER=True, NOTIFICATION_HOST="http://example.com")
+    def test_import_build_for_job(self):
         """
-        import_build should pull the details for the build and create artifacts
-        for them.
+        Import build for job should update the build with the details fetched
+        from the Jenkins server, including fetching the artifact details.
         """
         job = JobFactory.create()
-        with mock.patch("jenkins.tasks.import_build_for_job") as task_mock:
-            import_build.delay(job.pk, 5)
+        build = BuildFactory.create(job=job, number=5)
 
-        task_mock.assert_called_once_with(job.pk, 5)
+        mock_job = mock.Mock(spec=jenkinsapi.job.Job)
+        mock_build = mock.Mock(_data={"duration": 1000})
+
+        mock_job.get_build.return_value = mock_build
+
+        mock_build.get_status.return_value = "SUCCESS"
+        mock_build.get_result_url.return_value = "http://localhost/123"
+        mock_build.get_console.return_value = "This is the log"
+        mock_build.get_artifacts.return_value = []
+
+        with mock.patch("jenkins.tasks.logging") as mock_logging:
+            with mock.patch("jenkins.models.Jenkins") as mock_jenkins:
+                mock_jenkins.return_value.get_job.return_value = mock_job
+                result = import_build_for_job(build.pk)
+
+        self.assertEqual(build.pk, result)
+        mock_jenkins.assert_called_with(
+            job.server.url, username=u"root", password=u"testing")
+
+        mock_logging.assert_has_calls(
+            [mock.call.info("Located job %s\n" % job),
+             mock.call.info("Using server at %s\n" % job.server.url),
+             mock.call.info("Processing build details for %s #5" % job)])
+
+        build = Build.objects.get(pk=build.pk)
+        self.assertEqual(1000, build.duration)
+        self.assertEqual("SUCCESS", build.status)
+        self.assertEqual("This is the log", build.console_log)
 
 
 job_xml = """
@@ -116,7 +144,7 @@ class CreateJobTaskTest(TestCase):
         job = JobFactory.create(jobtype=jobtype, name="testing")
         with mock.patch(
                 "jenkins.models.Jenkins",
-                spec=jenkins.Jenkins) as mock_jenkins:
+                spec=jenkinsapi.jenkins.Jenkins) as mock_jenkins:
             mock_jenkins.return_value.has_job.return_value = False
             push_job_to_jenkins(job.pk)
 
@@ -143,7 +171,7 @@ class CreateJobTaskTest(TestCase):
 
         with mock.patch(
                 "jenkins.models.Jenkins",
-                spec=jenkins.Jenkins) as mock_jenkins:
+                spec=jenkinsapi.jenkins.Jenkins) as mock_jenkins:
             mock_jenkins.return_value.has_job.return_value = True
             mock_jenkins.return_value.get_job.return_value = mock_apijob
             push_job_to_jenkins(job.pk)

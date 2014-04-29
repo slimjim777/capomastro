@@ -1,7 +1,6 @@
 from django.utils import timezone
 
 from jenkins.tasks import build_job
-from projects.tasks import archive_projectbuild as archive_projectbuild_task
 from projects.models import ProjectDependency
 
 
@@ -52,13 +51,3 @@ def build_project(project, user=None, dependencies=None, queue_build=True):
                   "build": dependency.current_build}
         ProjectBuildDependency.objects.create(**kwargs)
     return build
-
-
-def archive_projectbuild(projectbuild, archive):
-    """
-    Archives the artifacts for a projectbuild.
-
-    Requires a projectbuild and a destination archive.
-    """
-    archive_projectbuild_task.delay(
-        projectbuild.pk, archive.pk)

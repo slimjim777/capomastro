@@ -1,43 +1,11 @@
 import logging
 
-from jenkins.models import Job, Build, Artifact
+from django.conf import settings
+from celery import chain
+
+from jenkins.models import Job
 from jenkins.utils import generate_job_name
-
-
-def import_build_for_job(job_pk, build_number):
-    """
-    Import a build for a job.
-    """
-    job = Job.objects.get(pk=job_pk)
-    logging.info("Located job %s\n" % job)
-
-    client = job.server.get_client()
-    logging.info("Using server at %s\n" % job.server.url)
-
-    jenkins_job = client.get_job(job.name)
-    build_result = jenkins_job.get_build(build_number)
-
-    # TODO: Shouldn't access _data here.
-    build_details = {
-        "status": build_result.get_status(),
-        # TODO: What should we do with this ID we get from Jenkins?
-        # Discard? or only set it if we don't have one?
-        # "build_id": build_result._data["id"],
-        "duration": build_result._data["duration"],
-        "url": build_result.get_result_url(),
-        "console_log": build_result.get_console(),
-    }
-    logging.info("Processing build details for %s #%d" % (job, build_number))
-    Build.objects.filter(job=job, number=build_number).update(**build_details)
-    build = Build.objects.get(job=job, number=build_number)
-    for artifact in build_result.get_artifacts():
-        artifact_details = {
-            "filename": artifact.filename,
-            "url": artifact.url,
-            "build": build
-        }
-        logging.info("%s" % artifact_details)
-        Artifact.objects.create(**artifact_details)
+from jenkins.tasks import import_build_for_job
 
 
 def create_job(jobtype, server):
@@ -70,3 +38,16 @@ def import_builds_for_job(job_pk):
 
     for build_number in good_build_numbers:
         import_build_for_job(job.pk, build_number)
+
+
+def postprocess_build(build):
+    """
+    Queues importing the specified build from Jenkins including details of the
+    artifacts etc.
+
+    When a build completes, execute any tasks that should be executed post
+    build.
+    """
+    post_build_tasks = getattr(settings, "POST_BUILD_TASKS", [])
+    additional_tasks = [x.s() for x in post_build_tasks]
+    return chain(import_build_for_job.s(build.pk), *additional_tasks).apply_async()

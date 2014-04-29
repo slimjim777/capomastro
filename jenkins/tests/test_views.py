@@ -132,7 +132,7 @@ class NotificationHandlerTest(TestCase):
             "name": "mytestjob",
             "url": "job/mytestjob/"}
 
-        with mock.patch("jenkins.views.import_build") as mock_import_build:
+        with mock.patch("jenkins.views.postprocess_build") as mock_postprocess_build:
             self._get_response_with_data(finished)
 
         build = Build.objects.get(job=self.job, number=11)
@@ -140,7 +140,7 @@ class NotificationHandlerTest(TestCase):
         # This gets properly populated by the task that runs.
         self.assertEqual("job/mytestjob/11/", build.url)
         self.assertEqual("FINISHED", build.phase)
-        mock_import_build.delay.assert_called_once_with(self.job.pk, 11)
+        mock_postprocess_build.assert_called_once_with(build)
 
     def test_handle_finished_notification_with_no_started_build(self):
         """
@@ -156,7 +156,7 @@ class NotificationHandlerTest(TestCase):
             "name": "mytestjob",
             "url": "job/mytestjob/"}
 
-        with mock.patch("jenkins.views.import_build") as mock_import_build:
+        with mock.patch("jenkins.views.postprocess_build") as mock_postprocess_build:
             self._get_response_with_data(finished)
 
         build = Build.objects.get(job=self.job, number=20)
@@ -164,7 +164,7 @@ class NotificationHandlerTest(TestCase):
         # This gets properly populated by the task that runs.
         self.assertEqual("job/mytestjob/20/", build.url)
         self.assertEqual("FINISHED", build.phase)
-        mock_import_build.delay.assert_called_once_with(self.job.pk, 20)
+        mock_postprocess_build.assert_called_once_with(build)
 
     def test_handle_finished_notification_with_build_id(self):
         """
@@ -181,12 +181,12 @@ class NotificationHandlerTest(TestCase):
             "name": "mytestjob",
             "url": "job/mytestjob/"}
 
-        with mock.patch("jenkins.views.import_build") as mock_import_build:
+        with mock.patch("jenkins.views.postprocess_build") as mock_postprocess_build:
             self._get_response_with_data(finished)
 
         build = Build.objects.get(job=self.job, number=20)
         self.assertEqual("20140312.2", build.build_id)
-        mock_import_build.delay.assert_called_once_with(self.job.pk, 20)
+        mock_postprocess_build.assert_called_once_with(build)
 
 
 class JenkinsServerIndexTest(WebTest):

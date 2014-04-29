@@ -45,5 +45,5 @@ class ArtifactFactory(factory.DjangoModelFactory):
     FACTORY_FOR = Artifact
 
     build = factory.SubFactory(BuildFactory)
-    filename = factory.fuzzy.FuzzyText(length=255)
+    filename = factory.fuzzy.FuzzyText(length=20)
     url = factory.Sequence(lambda n: "http://example.com/file/%d" % n)

@@ -5,7 +5,7 @@ import mock
 from projects.models import (
     ProjectBuild, ProjectDependency, ProjectBuildDependency)
 from projects.helpers import (
-    build_project, build_dependency, archive_projectbuild)
+    build_project, build_dependency)
 from .factories import ProjectFactory, DependencyFactory
 from jenkins.tests.factories import BuildFactory, ArtifactFactory
 from archives.tests.factories import ArchiveFactory
@@ -159,22 +159,3 @@ class BuildDependencyTest(TestCase):
 
         mock_build_job.delay.assert_called_once_with(
             dependency.job.pk, build_id="201403.2")
-
-
-class ArchiveProjectBuildTest(TestCase):
-
-    def test_archive_projectbuild(self):
-        """
-        The archive_projectbuild helper should kick off the task to archive the
-        project.
-        """
-        archive = ArchiveFactory.create()
-        project = ProjectFactory.create()
-        dependency = DependencyFactory.create()
-        ProjectDependency.objects.create(
-            project=project, dependency=dependency)
-
-        projectbuild = build_project(project, queue_build=False)
-        with mock.patch("projects.helpers.archive_projectbuild_task") as mock_task:
-            archive_projectbuild(projectbuild, archive)
-        mock_task.delay.assert_called_once_with(projectbuild.pk, archive.pk)

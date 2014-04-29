@@ -1,40 +1,29 @@
-class ArchivePolicy(object):
+from django.utils.text import slugify
+
+
+class DefaultPolicy(object):
     """
-    Base ArchivePolicy class. Gets artifact URLs from a build,
-    maps them to paths for archiving.
+    Base ArchivePolicy class. Calculates a basic path based on the basedir and
+    filename.
     """
-    def __init__(self, projectbuild):
-        self.projectbuild = projectbuild
-
-    def get_mapped_path(self, artifact):
+    def get_path_for_artifact(self, artifact, **kwargs):
         """
-        Returns the mapped path for the artifact url.
-
-        Override this with your archive specific mapping.
+        Returns a filesystem path for an artifact.
         """
-        return artifact.url
-
-    def get_mappings(self):
-        """
-        Returns a dictionary of artifact_url:mapped_path.
-        """
-        paths = {}
-        for artifact in self.projectbuild.get_current_artifacts():
-            paths[artifact.url] = self.get_mapped_path(artifact)
-        return paths
+        return artifact.filename
 
 
-class CdimageArchivePolicy(ArchivePolicy):
+class CdimageArchivePolicy(object):
     """
     Converts jenkins artifact urls to a cdimage-like structure.
     """
-    def get_mapped_path(self, artifact):
+    def get_path_for_artifact(self, artifact, projectbuild):
         """
         Returns a cdimage-like relative path.
         """
         return "{project}/{build_id}/{filename}".format(
             **{
-                "project": self.projectbuild.project.name,
-                "build_id": self.projectbuild.build_id,
+                "project": slugify(projectbuild.project.name),
+                "build_id": projectbuild.build_id,
                 "filename": artifact.filename
             })

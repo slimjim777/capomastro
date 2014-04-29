@@ -16,7 +16,6 @@ from projects.forms import (
     ProjectForm, DependencyForm, ProjectBuildForm, ProjectBuildArchiveForm)
 from projects.helpers import build_project, build_dependency
 from projects.utils import get_build_table_for_project
-from projects.helpers import archive_projectbuild
 
 
 class ProjectCreateView(
@@ -106,9 +105,8 @@ class ProjectBuildListView(LoginRequiredMixin, ListView):
         return context
 
 
-class ProjectBuildDetailView(LoginRequiredMixin, FormView):
+class ProjectBuildDetailView(LoginRequiredMixin, DetailView):
 
-    form_class = ProjectBuildArchiveForm
     template_name = "projects/projectbuild_detail.html"
 
     def get_object(self):
@@ -139,24 +137,7 @@ class ProjectBuildDetailView(LoginRequiredMixin, FormView):
         context["projectbuild"] = self._get_build_from_url()
         context["dependencies"] = self._get_build_dependencies(
             context["projectbuild"])
-        context["can_be_archived"] = context["projectbuild"].can_be_archived
         return context
-
-    def form_valid(self, form):
-        """
-        Queue archiving of this project build.
-        """
-        projectbuild = self.get_object()
-        archive = form.cleaned_data["archive"]
-        archive_projectbuild(projectbuild, archive)
-        messages.add_message(
-            self.request, messages.INFO,
-            "Archiving for '%s' queued." % projectbuild.build_id)
-        url = reverse(
-            "project_projectbuild_detail",
-            kwargs={"project_pk": projectbuild.project.pk,
-                    "build_pk": projectbuild.pk})
-        return HttpResponseRedirect(url)
 
 
 class ProjectDetailView(LoginRequiredMixin, DetailView):

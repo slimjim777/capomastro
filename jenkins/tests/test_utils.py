@@ -150,3 +150,13 @@ class GenerateNameJobTest(TestCase):
             name = generate_job_name(job)
         expected_job_name = u"my-test-job_%s" % now.strftime("%s")
         self.assertEqual(name, expected_job_name)
+
+
+class GetAuthenticatedArtifactUrlTest(TestCase):
+
+    def test_get_authenticated_artifact_url(self):
+        """
+        Returns a url with username:password embedded to make it easier to
+        provide links to download artifacts direct from the UI.
+        """
+
