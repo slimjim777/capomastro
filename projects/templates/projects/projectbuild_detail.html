@@ -33,7 +33,7 @@
           <td>{{ dependency.build.status }}</td>
           <td><a href="{{ dependency.build.url }}">{{ dependency.build.phase }}</a></td>
           {% else %}
-          <td colspan="3">Waiting for build of job {{ dependency.job }}</td>
+          <td colspan="4">Waiting for build of job {{ dependency.job }}</td>
           {% endif %}
         </tr>
         {% endfor %}
