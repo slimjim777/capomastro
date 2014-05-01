@@ -70,7 +70,9 @@ class Archive(models.Model):
         """
         items = []
         for artifact in projectbuild.get_current_artifacts():
-            items.append(self.add_artifact(artifact, projectbuild=projectbuild))
+            item = self.add_artifact(artifact, projectbuild=projectbuild)
+            if item:
+                items.append(item)
         return items
 
 
