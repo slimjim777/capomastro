@@ -145,6 +145,38 @@ class ArchiveTest(TestCase):
 
         archive = ArchiveFactory.create()
 
-        archive.archive_projectbuild(projectbuild)
+        result = archive.archive_projectbuild(projectbuild)
 
         self.assertEqual(2, archive.items.count())
+        self.assertEqual(2, len(result))
+
+    def test_archive_projectbuild_with_prearchived_artifact(self):
+        """
+        If we archive a project build with several artifacts, it should return
+        only the newly added artifacts.
+        """
+        project = ProjectFactory.create()
+        dependency1 = DependencyFactory.create()
+        ProjectDependency.objects.create(
+            project=project, dependency=dependency1)
+        dependency2 = DependencyFactory.create()
+        ProjectDependency.objects.create(
+            project=project, dependency=dependency2)
+
+        projectbuild = build_project(project, queue_build=False)
+
+        build1 = BuildFactory.create(
+            job=dependency1.job, build_id=projectbuild.build_key)
+        build2 = BuildFactory.create(
+            job=dependency2.job, build_id=projectbuild.build_key)
+
+        ArtifactFactory.create(build=build1, filename="artifact1.gz")
+        artifact = ArtifactFactory.create(
+            build=build2, filename="artifact2.gz")
+        archive = ArchiveFactory.create()
+
+        archive.add_artifact(artifact, projectbuild=projectbuild)
+        result = archive.archive_projectbuild(projectbuild)
+
+        self.assertEqual(2, archive.items.count())
+        self.assertEqual(1, len(result))
