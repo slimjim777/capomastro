@@ -1,8 +1,6 @@
 import uuid
 
 from django.db import models
-from django.db.models.signals import post_save
-from django.dispatch import receiver
 from django.contrib.auth.models import User
 from django.utils import timezone
 from django.utils.encoding import python_2_unicode_compatible
@@ -114,7 +112,7 @@ class ProjectBuildDependency(models.Model):
     """
     Represents one of the dependencies of a particular Projet Build.
     """
-    projectbuild = models.ForeignKey("ProjectBuild")
+    projectbuild = models.ForeignKey("ProjectBuild", related_name="dependencies")
     build = models.ForeignKey(Build, blank=True, null=True)
     dependency = models.ForeignKey(Dependency)
 
@@ -192,49 +190,3 @@ def generate_projectbuild_id(projectbuild):
                "project": projectbuild.project}
     today_count = ProjectBuild.objects.filter(**filters).count()
     return today.strftime("%%Y%%m%%d.%d" % today_count)
-
-
-@receiver(post_save, sender=Build, dispatch_uid="new_build_handler")
-def handle_new_build(sender, created, instance, **kwargs):
-    if instance.job.dependency_set.exists():
-        for dependency in instance.job.dependency_set.all():
-            for project_dependency in dependency.projectdependency_set.filter(
-                    auto_track=True):
-                project_dependency.current_build = instance
-                project_dependency.save()
-
-
-@receiver(post_save, sender=Build, dispatch_uid="projectbuild_build_handler")
-def handle_builds_for_projectbuild(sender, created, instance, **kwargs):
-    if instance.build_id:
-        dependency = ProjectBuildDependency.objects.filter(
-            dependency__job=instance.job,
-            projectbuild__build_key=instance.build_id).first()
-        # TODO: This event handler should be split...
-        # This is a possible race-condition, if we have multiple dependencies
-        # being processed at the same time, then we could miss the status of
-        # one.
-        #
-        # Splitting it into a task would rule out using events tho'.
-        if dependency:
-            dependency.build = instance
-            dependency.save()
-            projectbuild = dependency.projectbuild
-
-            build_statuses = ProjectBuildDependency.objects.filter(
-                projectbuild=dependency.projectbuild).values(
-                "build__status", "build__phase")
-
-            statuses = set([x["build__status"] for x in build_statuses])
-            phases = set([x["build__phase"] for x in build_statuses])
-            updated = False
-            if len(statuses) == 1:
-                projectbuild.status = list(statuses)[0]
-                updated = True
-            if len(phases) == 1:
-                projectbuild.phase = list(phases)[0]
-                if projectbuild.phase == "FINISHED":
-                    projectbuild.ended_at = timezone.now()
-                    projectbuild.save()
-            elif updated:
-                projectbuild.save()

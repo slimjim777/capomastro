@@ -16,6 +16,7 @@ from archives.models import Archive
 from archives.transports import Transport
 from jenkins.tests.factories import ArtifactFactory, BuildFactory
 from projects.helpers import build_project
+from projects.tasks import process_build_dependencies
 from projects.models import ProjectDependency
 from projects.tests.factories import DependencyFactory, ProjectFactory
 from .factories import ArchiveFactory
@@ -46,7 +47,6 @@ class TransferFileToArchiveTaskTest(TestCase):
     def tearDown(self):
         shutil.rmtree(self.basedir)
 
-    @override_settings(CELERY_ALWAYS_EAGER=True)
     def test_archive_artifact_from_jenkins(self):
         """
         archive_artifact_from_jenkins should get a transport, and then call
@@ -62,7 +62,7 @@ class TransferFileToArchiveTaskTest(TestCase):
         fakefile = StringIO(u"Artifact from Jenkins")
         with mock.patch("archives.transports.urllib2") as urllib2_mock:
             urllib2_mock.urlopen.return_value = fakefile
-            archive_artifact_from_jenkins.delay(artifact.pk, archive.pk)
+            archive_artifact_from_jenkins(artifact.pk, archive.pk)
 
         item = archive.get_archived_artifact(artifact)
         filename = os.path.join(self.basedir, item.archived_path)
@@ -118,15 +118,19 @@ class ProcessBuildArtifactsTaskTest(TestCase):
 
         build = BuildFactory.create(
             job=dependency.job, build_id=projectbuild.build_key)
+
         artifact = ArtifactFactory.create(
             build=build, filename="testing/testing.txt")
         archive = ArchiveFactory.create(
             transport="local", basedir=self.basedir, default=True)
 
+        # We need to ensure that the artifacts are all connected up.
+        process_build_dependencies(build.pk)
+
         fakefile = StringIO(u"Artifact from Jenkins")
         with mock.patch("archives.transports.urllib2") as urllib2_mock:
             urllib2_mock.urlopen.return_value = fakefile
-            process_build_artifacts.delay(build.pk)
+            process_build_artifacts(build.pk)
 
         item = archive.get_archived_artifact(artifact)
         filename = os.path.join(self.basedir, item.archived_path)

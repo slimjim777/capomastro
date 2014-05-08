@@ -47,7 +47,7 @@ class ArchiveTest(TestCase):
         names for files in the archive store.
         """
         archive = ArchiveFactory.create(policy="default")
-        self.assertEqual(DefaultPolicy, archive.get_policy())
+        self.assertIsInstance(archive.get_policy(), DefaultPolicy)
 
     def test_add_artifact(self):
         """

@@ -19,10 +19,18 @@ def build_dependency(dependency, build_id=None):
         dependency.job.pk, **kwargs)
 
 
-def build_project(project, user=None, dependencies=None, queue_build=True):
+def build_project(project, user=None, dependencies=None, **kwargs):
     """
     Given a build, schedule building each of its dependencies.
+
+    if queue_build parameter is False, then don't actually do the builds, just
+    create the ProjectBuildDependencies for the project.
+
+    if automated is True, then we are handling an automatically created
+    ProjectBuild, and we should create ProjectBuildDependencies with builds
+    for all dependencies.
     """
+    queue_build = kwargs.pop("queue_build", True)
     dependencies = dependencies and dependencies or []
     from projects.models import ProjectBuild, ProjectBuildDependency
     build = ProjectBuild.objects.create(
@@ -38,12 +46,21 @@ def build_project(project, user=None, dependencies=None, queue_build=True):
     dependencies_not_to_build = ProjectDependency.objects.filter(
         project=project).exclude(pk__in=dependencies_to_build)
 
-    for dependency in dependencies_to_build.order_by("dependency__job__pk"):
-        kwargs = {"projectbuild": build,
-                  "dependency": dependency.dependency}
-        ProjectBuildDependency.objects.create(**kwargs)
-        if queue_build:
-            build_dependency(dependency.dependency, build_id=build.build_key)
+    automated = kwargs.pop("automated", False)
+    if not automated:
+        for dependency in dependencies_to_build.order_by(
+                "dependency__job__pk"):
+            kwargs = {"projectbuild": build,
+                      "dependency": dependency.dependency}
+            ProjectBuildDependency.objects.create(**kwargs)
+            if queue_build:
+                build_dependency(
+                    dependency.dependency, build_id=build.build_key)
+
+    # If it's automated, then we create a ProjectBuildDependency for each
+    # dependency of the project and prepopulate it with the last known build.
+    if automated:
+        dependencies_not_to_build = dependencies_to_build
 
     for dependency in dependencies_not_to_build:
         kwargs = {"projectbuild": build,
