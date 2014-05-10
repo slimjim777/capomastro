@@ -1,6 +1,5 @@
 from django.core.urlresolvers import reverse
 from django.contrib.auth.models import User
-from django.utils import timezone
 
 from django_webtest import WebTest
 import mock
@@ -12,9 +11,7 @@ from jenkins.models import Job
 from .factories import (
     ProjectFactory, DependencyFactory, ProjectBuildFactory)
 from jenkins.tests.factories import (
-    BuildFactory, JobFactory, JobTypeFactory, JenkinsServerFactory,
-    ArtifactFactory)
-from archives.tests.factories import ArchiveFactory
+    BuildFactory, JobFactory, JobTypeFactory, JenkinsServerFactory)
 
 
 # TODO Introduce subclass of WebTest that allows easy assertions that a page

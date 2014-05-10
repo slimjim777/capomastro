@@ -5,7 +5,8 @@ from jenkinsapi.jenkins import Jenkins
 
 from jenkins.models import Build, JobType
 from .helpers import mock_url
-from .factories import BuildFactory, JenkinsServerFactory
+from .factories import BuildFactory, JenkinsServerFactory, JobTypeFactory
+from .fixtures import job_with_parameters
 
 
 class JenkinsServerTest(TestCase):
@@ -42,3 +43,15 @@ class JobTypeTest(TestCase):
         """We can create JobTypes."""
         JobType.objects.create(
             name="my-test", config_xml="testing xml")
+
+    def test_get_parameters(self):
+        """
+        JobType.get_parameters should use the parameter parsing to fetch the
+        correct parameters.
+        """
+        job_type = JobTypeFactory.create(
+            config_xml=job_with_parameters)
+        parameters = job_type.get_parameters()
+        self.assertEqual(
+            ["BUILD_ID", "BRANCH_TO_CHECKOUT"],
+            [x["name"] for x in parameters])

@@ -6,8 +6,9 @@ import mock
 
 from jenkins.utils import (
     get_notifications_url, DefaultSettings, get_job_xml_for_upload,
-    get_context_for_template, generate_job_name)
+    get_context_for_template, generate_job_name, parse_parameters_from_job)
 from .factories import JobFactory, JobTypeFactory, JenkinsServerFactory
+from .fixtures import job_with_parameters
 
 
 class NotificationUrlTest(SimpleTestCase):
@@ -152,11 +153,16 @@ class GenerateNameJobTest(TestCase):
         self.assertEqual(name, expected_job_name)
 
 
-class GetAuthenticatedArtifactUrlTest(TestCase):
+class ParseParametersFromJob(TestCase):
 
-    def test_get_authenticated_artifact_url(self):
+    def test_parse_parameters_from_job(self):
         """
-        Returns a url with username:password embedded to make it easier to
-        provide links to download artifacts direct from the UI.
         """
-
+        self.assertEqual([
+          {"name": "BUILD_ID",
+           "description": "The projectbuild id to associate with.",
+           "defaultValue": None},
+          {"name": "BRANCH_TO_CHECKOUT",
+           "description": "Branch to checkout and build.",
+           "defaultValue": "http:///launchpad.net/mybranch"}],
+          parse_parameters_from_job(job_with_parameters))

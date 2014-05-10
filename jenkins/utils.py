@@ -1,11 +1,11 @@
-from django.template import Template, Context
+from urlparse import urljoin
+import xml.etree.ElementTree as ET
+
 from django.conf import settings
+from django.core.urlresolvers import reverse
+from django.template import Template, Context
 from django.utils import timezone
 from django.utils.text import slugify
-
-from urlparse import urljoin
-
-from django.core.urlresolvers import reverse
 
 
 def get_notifications_url(base, server):
@@ -73,3 +73,20 @@ class DefaultSettings(object):
         exist.
         """
         return getattr(settings, key, getattr(self.defaults, key, None))
+
+
+xpath = ".//hudson.model.ParametersDefinitionProperty/parameterDefinitions/"
+
+def parse_parameters_from_job(body):
+    """
+    Parses the supplied XML document and extracts all parameters, returns a list
+    of dictionaries with the details of the parameters extracted.
+    """
+    result = []
+    root = ET.fromstring(body)
+    for param in root.findall(xpath):
+        item = {}
+        for param_element in param.findall("./"):
+            item[param_element.tag] = param_element.text
+        result.append(item)
+    return result
