@@ -8,7 +8,6 @@ from django.dispatch import receiver
 from projects.models import (
     Dependency, ProjectDependency, ProjectBuild, generate_projectbuild_id,
     ProjectBuildDependency)
-from projects.signals import projectbuild_finished
 from projects.tasks import process_build_dependencies
 from .factories import (
     ProjectFactory, DependencyFactory, ProjectBuildFactory)
