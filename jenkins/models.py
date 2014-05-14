@@ -2,6 +2,7 @@ from django.db import models
 from django.utils.encoding import python_2_unicode_compatible
 
 from jenkinsapi.jenkins import Jenkins
+from jenkins.utils import parse_parameters_from_job
 
 
 @python_2_unicode_compatible
@@ -35,6 +36,12 @@ class JobType(models.Model):
 
     def __str__(self):
         return self.name
+
+    def get_parameters(self):
+        """
+        Parse the config_xml and extract the parameters.
+        """
+        return parse_parameters_from_job(self.config_xml)
 
 
 @python_2_unicode_compatible

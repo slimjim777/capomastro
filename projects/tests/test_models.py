@@ -3,7 +3,6 @@ from __future__ import unicode_literals
 from django.test import TestCase
 from django.contrib.auth.models import User
 from django.utils import timezone
-from django.dispatch import receiver
 
 from projects.models import (
     Dependency, ProjectDependency, ProjectBuild, generate_projectbuild_id,
@@ -68,7 +67,7 @@ class DependencyTest(TestCase):
         dependency = DependencyFactory.create()
         self.assertFalse(dependency.is_building)
 
-        build = BuildFactory.create(job=dependency.job)
+        BuildFactory.create(job=dependency.job)
         self.assertTrue(dependency.is_building)
 
 
