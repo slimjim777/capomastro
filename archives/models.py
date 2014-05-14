@@ -36,7 +36,7 @@ class Archive(models.Model):
         Returns a class to be used as the archive name generation policy for
         this archive or None.
         """
-        return POLICIES.get(self.policy)
+        return POLICIES.get(self.policy)()
 
     def get_transport(self):
         """
@@ -48,7 +48,7 @@ class Archive(models.Model):
         """
         Add an Artifact for this project.
         """
-        policy = self.get_policy()()
+        policy = self.get_policy()
         if not self.items.filter(artifact=artifact).exists():
             item = self.items.create(
                 artifact=artifact,

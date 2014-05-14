@@ -1,3 +1,5 @@
+from __future__ import unicode_literals
+
 from django.test import TestCase
 from django.contrib.auth.models import User
 from django.utils import timezone
@@ -6,7 +8,7 @@ from django.dispatch import receiver
 from projects.models import (
     Dependency, ProjectDependency, ProjectBuild, generate_projectbuild_id,
     ProjectBuildDependency)
-from projects.signals import projectbuild_finished
+from projects.tasks import process_build_dependencies
 from .factories import (
     ProjectFactory, DependencyFactory, ProjectBuildFactory)
 from jenkins.tests.factories import JobFactory, BuildFactory, ArtifactFactory
@@ -81,48 +83,6 @@ class ProjectDependencyTest(TestCase):
         self.assertEqual(
             set([dependency]), set(project.dependencies.all()))
 
-    def test_auto_track_build(self):
-        """
-        If we create a new build for a dependency of a Project, and the
-        ProjectDependency is set to auto_track then the current_build should be
-        updated to reflect the new build.
-        """
-        build1 = BuildFactory.create()
-        dependency = DependencyFactory.create(job=build1.job)
-
-        project = ProjectFactory.create()
-        project_dependency = ProjectDependency.objects.create(
-            project=project, dependency=dependency)
-        project_dependency.current_build = build1
-        project_dependency.save()
-
-        build2 = BuildFactory.create(job=build1.job)
-        # Reload the project dependency
-        project_dependency = ProjectDependency.objects.get(
-            pk=project_dependency.pk)
-        self.assertEqual(build2, project_dependency.current_build)
-
-    def test_new_build_with_no_auto_track_build(self):
-        """
-        If we create a new build for a dependency of a Project, and the
-        ProjectDependency is not set to auto_track then the current_build
-        should not be updated.
-        """
-        build1 = BuildFactory.create()
-        dependency = DependencyFactory.create(job=build1.job)
-
-        project = ProjectFactory.create()
-        project_dependency = ProjectDependency.objects.create(
-            project=project, dependency=dependency, auto_track=False)
-        project_dependency.current_build = build1
-        project_dependency.save()
-
-        BuildFactory.create(job=build1.job)
-        # Reload the project dependency
-        project_dependency = ProjectDependency.objects.get(
-            pk=project_dependency.pk)
-        self.assertEqual(build1, project_dependency.current_build)
-
 
 class ProjectTest(TestCase):
 
@@ -141,6 +101,8 @@ class ProjectTest(TestCase):
 
         ArtifactFactory.create(build=build1)
         artifact2 = ArtifactFactory.create(build=build2)
+
+        process_build_dependencies(build2.pk)
 
         self.assertEqual([artifact2], list(project.get_current_artifacts()))
 
@@ -195,60 +157,6 @@ class ProjectBuildTest(TestCase):
         expected_build_id = timezone.now().strftime("%Y%m%d.0")
         self.assertEqual(expected_build_id, projectbuild.build_id)
 
-    def test_projectbuild_updates_when_build_created(self):
-        """
-        If we have a ProjectBuild with a dependency, which is associated with a
-        job, and we get a build from that job, then if the build_id is correct,
-        we should associate the build dependency with that build.
-        """
-        dependency1 = DependencyFactory.create()
-        ProjectDependency.objects.create(
-            project=self.project, dependency=dependency1)
-
-        dependency2 = DependencyFactory.create()
-        ProjectDependency.objects.create(
-            project=self.project, dependency=dependency2)
-
-        from projects.helpers import build_project
-        projectbuild = build_project(self.project, queue_build=False)
-
-        build1 = BuildFactory.create(
-            job=dependency1.job, build_id=projectbuild.build_key)
-
-        build_dependencies = ProjectBuildDependency.objects.filter(
-            projectbuild=projectbuild)
-        self.assertEqual(2, build_dependencies.count())
-        dependency = build_dependencies.get(dependency=dependency1)
-        self.assertEqual(build1, dependency.build)
-
-        dependency = build_dependencies.get(dependency=dependency2)
-        self.assertIsNone(dependency.build)
-
-    def test_project_build_status_when_all_dependencies_have_builds(self):
-        """
-        When we have FINISHED builds for all the dependencies, the projectbuild
-        state should be FINISHED.
-        """
-        dependency1 = DependencyFactory.create()
-        ProjectDependency.objects.create(
-            project=self.project, dependency=dependency1)
-
-        dependency2 = DependencyFactory.create()
-        ProjectDependency.objects.create(
-            project=self.project, dependency=dependency2)
-
-        from projects.helpers import build_project
-        projectbuild = build_project(self.project, queue_build=False)
-
-        for job in [dependency1.job, dependency2.job]:
-            BuildFactory.create(
-                job=job, build_id=projectbuild.build_key, phase="FINISHED")
-
-        projectbuild = ProjectBuild.objects.get(pk=projectbuild.pk)
-        self.assertEqual("SUCCESS", projectbuild.status)
-        self.assertEqual("FINISHED", projectbuild.phase)
-        self.assertIsNotNone(projectbuild.ended_at)
-
     def test_can_be_archived(self):
         """
         A ProjectBuild knows whether or not it's ready to be archived.
@@ -270,10 +178,11 @@ class ProjectBuildTest(TestCase):
 
         builds = []
         for job in [dependency1.job, dependency2.job]:
-            builds.append(
-                BuildFactory.create(
-                    job=job, build_id=projectbuild.build_key,
-                    phase="FINISHED"))
+            build = BuildFactory.create(
+                job=job, build_id=projectbuild.build_key,
+                phase="FINISHED")
+            builds.append(build)
+            process_build_dependencies(build.pk)
         projectbuild = ProjectBuild.objects.get(pk=projectbuild.pk)
         self.assertEqual("FINISHED", projectbuild.phase)
 
