@@ -1,5 +1,3 @@
-from django.utils import timezone
-
 from jenkins.tasks import build_job
 from projects.models import ProjectDependency
 

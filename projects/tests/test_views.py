@@ -252,7 +252,7 @@ class DependencyCreateTest(WebTest):
         project_url = reverse("dependency_create")
         response = self.app.get(project_url, user="testing")
 
-        form = response.forms["dependency-form"]
+        form = response.forms["dependency"]
         form["jobtype"].select(self.jobtype.pk)
         form["server"].select(self.server.pk)
         form["name"].value = "My Dependency"
@@ -347,6 +347,40 @@ class DependencyDetailTest(WebTest):
             response, "Build for '%s' queued." % dependency.name)
         build_job_mock.delay.assert_called_once_with(
             dependency.job.pk, params={"TESTPARAMETER": "500"})
+
+
+class DependencyUpdateTest(WebTest):
+
+    def setUp(self):
+        self.user = User.objects.create_superuser(
+            "testing", "testing@example.com", "password")
+
+    def test_dependency_update(self):
+        """
+        We can go from the DependencyDetail view to the DependencyUpdateView and
+        modify the parameters for a Job.
+        """
+        dependency = DependencyFactory.create()
+        project = ProjectFactory.create()
+        ProjectDependency.objects.create(
+            project=project, dependency=dependency)
+        url = reverse("dependency_detail", kwargs={"pk": dependency.pk})
+        response = self.app.get(url, user="testing")
+
+        response = response.click("Edit dependency")
+
+        form = response.forms["dependency"]
+        form["parameters"] = "TESTING=2\n"
+        form["name"] = "My New Dependency"
+        form["description"] = "New Description"
+
+        self.assertNotIn("job", form.fields)
+        response = form.submit()
+
+        dependency = Dependency.objects.get(pk=dependency.pk)
+        self.assertEqual("My New Dependency", dependency.name)
+        self.assertEqual("New Description", dependency.description)
+        self.assertEqual("TESTING=2\n", dependency.parameters)
 
 
 class InitiateProjectBuildTest(WebTest):

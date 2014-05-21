@@ -50,8 +50,8 @@ class Dependency(models.Model):
     @property
     def is_building(self):
         """
-        Returns True if we believe this dependency is currently being built on a
-        server.
+        Returns True if we believe this dependency is currently being built
+        on a server.
         """
         return Build.objects.filter(
             job=self.job, phase="STARTED").exists()
@@ -112,7 +112,8 @@ class ProjectBuildDependency(models.Model):
     """
     Represents one of the dependencies of a particular Projet Build.
     """
-    projectbuild = models.ForeignKey("ProjectBuild", related_name="dependencies")
+    projectbuild = models.ForeignKey(
+        "ProjectBuild", related_name="dependencies")
     build = models.ForeignKey(Build, blank=True, null=True)
     dependency = models.ForeignKey(Dependency)
 

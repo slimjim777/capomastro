@@ -1,13 +1,9 @@
-import logging
-import urlparse
-
 from django.utils import timezone
 
 from celery.utils.log import get_task_logger
 from celery import shared_task
 
 from projects.helpers import build_project
-from archives.models import Archive
 from projects.models import ProjectBuildDependency
 from jenkins.models import Build
 
@@ -55,9 +51,9 @@ def update_autotracked_dependencies(build):
 
 def update_projectbuilds(build):
     """
-    If this build was for a ProjectBuild, i.e. if the build's build_id matches a
-    ProjectBuildDependency for the build job, then we need to update the state
-    of the ProjectBuild.
+    If this build was for a ProjectBuild, i.e. if the build's build_id matches
+    a ProjectBuildDependency for the build job, then we need to update the
+    state of the ProjectBuild.
     """
     dependency = get_projectbuild_dependency_for_build(build)
     if dependency:
@@ -96,8 +92,8 @@ def create_projectbuilds_for_autotracking(build):
         for project_dependency in dependency.projectdependency_set.filter(
                 auto_track=True):
             if (build_dependency is not None and
-                build_dependency.dependency == project_dependency.dependency):
-               continue
+                    build_dependency.dependency == project_dependency.dependency):
+                continue
             # We have a Project with a an auto-tracked element.
             projectbuild = build_project(
                 project_dependency.project, dependencies=None,
