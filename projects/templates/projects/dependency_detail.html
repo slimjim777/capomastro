@@ -69,6 +69,7 @@
     </table>
     <p>
      <a href="{% url 'dependency_update' pk=dependency.pk %}" class="btn btn-primary" role="button">Edit dependency »</a>
+     <a href="{% url 'dependency_delete' pk=dependency.pk %}" class="btn" role="button">Delete dependency »</a>
   </div>
 </div>
 {% endblock %}

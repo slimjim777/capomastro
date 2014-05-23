@@ -21,7 +21,11 @@
         {% for dependency in dependencies %}
         <tr>
           <td><a href="{% url 'dependency_detail' pk=dependency.pk %}">{{ dependency.name }}</a></td>
+          {% if dependency.job %}
           <td><a href="{% url 'jobtype_detail' pk=dependency.job.jobtype.pk %}">{{ dependency.job.jobtype.name }}</a></td>
+          {% else %}
+          <td><p class="bg-danger">Unable to locate job for this dependency.</p></td>
+          {% endif %}
           <td>{{ dependency.description|default:"No description" }}</td>
           <td>{{ dependency.job.name }}</td>
         </tr>

@@ -5,7 +5,9 @@ import mock
 import jenkinsapi
 
 from jenkins.models import Build
-from jenkins.tasks import build_job, push_job_to_jenkins, import_build_for_job
+from jenkins.tasks import (
+    build_job, push_job_to_jenkins, import_build_for_job,
+    delete_job_from_jenkins)
 from .factories import (
     JobFactory, JenkinsServerFactory, JobTypeFactory, BuildFactory)
 
@@ -185,3 +187,24 @@ class CreateJobTaskTest(TestCase):
                 "{{ notifications_url }}",
                 "http://example.com/jenkins/notifications/?server=%d" %
                 job.server.pk).strip())
+
+
+class RemoveJobTaskTest(TestCase):
+
+    @override_settings(CELERY_ALWAYS_EAGER=True)
+    def test_delete_job_from_jenkins(self):
+        """
+        The delete_job_from_jenkins task should remove the job from the correct
+        server.
+        """
+        jobtype = JobTypeFactory.create(config_xml=job_xml)
+        job = JobFactory.create(jobtype=jobtype, name="testing")
+        with mock.patch(
+                "jenkins.models.Jenkins",
+                spec=jenkinsapi.jenkins.Jenkins) as mock_jenkins:
+            mock_jenkins.return_value.has_job.return_value = True
+            delete_job_from_jenkins(job.pk)
+
+        mock_jenkins.assert_called_with(
+            job.server.url, username=u"root", password=u"testing")
+        mock_jenkins.return_value.delete_job.assert_called_with("testing")

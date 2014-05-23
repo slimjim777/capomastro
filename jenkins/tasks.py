@@ -77,3 +77,15 @@ def import_build_for_job(build_pk):
         logging.info("%s" % artifact_details)
         Artifact.objects.create(**artifact_details)
     return build_pk
+
+
+@shared_task
+def delete_job_from_jenkins(job_pk):
+    """
+    Deletes a job from its Jenkins server.
+    """
+    job = Job.objects.get(pk=job_pk)
+    xml = get_job_xml_for_upload(job, job.server)
+    client = job.server.get_client()
+
+    return client.delete_job(job.name)

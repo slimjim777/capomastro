@@ -7,7 +7,6 @@ from projects.models import (
 from projects.helpers import (
     build_project, build_dependency)
 from .factories import ProjectFactory, DependencyFactory
-from jenkins.tests.factories import BuildFactory
 
 
 class BuildProjectTest(TestCase):
