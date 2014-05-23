@@ -67,6 +67,8 @@
         {% endfor %}
       </tbody>
     </table>
+    <p>
+     <a href="{% url 'dependency_update' pk=dependency.pk %}" class="btn btn-primary" role="button">Edit dependency »</a>
   </div>
 </div>
 {% endblock %}

@@ -5,7 +5,6 @@ from projects.models import (
     Project, Dependency, ProjectDependency)
 from jenkins.helpers import create_job
 from jenkins.tasks import push_job_to_jenkins
-from archives.models import Archive
 
 
 class ProjectForm(forms.ModelForm):
@@ -42,7 +41,7 @@ class ProjectForm(forms.ModelForm):
         return project
 
 
-class DependencyForm(forms.ModelForm):
+class DependencyCreateForm(forms.ModelForm):
 
     jobtype = forms.ModelChoiceField(
         queryset=JobType.objects, required=True, label="Job type",
@@ -55,7 +54,7 @@ class DependencyForm(forms.ModelForm):
         exclude = ["job"]
 
     def save(self, commit=True):
-        dependency = super(DependencyForm, self).save(commit=commit)
+        dependency = super(DependencyCreateForm, self).save(commit=commit)
         job = create_job(
             self.cleaned_data["jobtype"], self.cleaned_data["server"])
         push_job_to_jenkins.delay(job.pk)
@@ -71,8 +70,3 @@ class ProjectBuildForm(forms.Form):
         error_messages={"required": "Must select at least one dependency."})
     project = forms.ModelChoiceField(
         Project.objects, required=True, widget=forms.HiddenInput)
-
-
-class ProjectBuildArchiveForm(forms.Form):
-
-    archive = forms.ModelChoiceField(Archive.objects, required=True)

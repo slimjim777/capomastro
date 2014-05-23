@@ -13,7 +13,7 @@ from projects.models import (
     Project, Dependency, ProjectDependency, ProjectBuild,
     ProjectBuildDependency)
 from projects.forms import (
-    ProjectForm, DependencyForm, ProjectBuildForm, ProjectBuildArchiveForm)
+    ProjectForm, DependencyCreateForm, ProjectBuildForm)
 from projects.helpers import build_project, build_dependency
 from projects.utils import get_build_table_for_project
 
@@ -167,7 +167,7 @@ class DependencyCreateView(
     raise_exception = True
     permission_required = "projects.add_dependency"
     form_valid_message = "Dependency created"
-    form_class = DependencyForm
+    form_class = DependencyCreateForm
     model = Dependency
 
     def get_success_url(self):
@@ -199,7 +199,7 @@ class DependencyDetailView(LoginRequiredMixin, DetailView):
         if context["dependency"].is_building:
             messages.add_message(
                 self.request, messages.INFO,
-                    "Dependency currently building")
+                "Dependency currently building")
         return context
 
     def post(self, request, pk):
@@ -239,9 +239,22 @@ class ProjectDependenciesView(LoginRequiredMixin, DetailView):
         return context
 
 
+class DependencyUpdateView(
+    LoginRequiredMixin, PermissionRequiredMixin, FormValidMessageMixin,
+        UpdateView):
+
+    permission_required = "projects.change_dependency"
+    form_valid_message = "Dependency updated"
+    model = Dependency
+    fields = ["name", "description", "parameters"]
+
+    def get_success_url(self):
+        return reverse("dependency_detail", kwargs={"pk": self.object.pk})
+
+
 __all__ = [
     "ProjectCreateView", "ProjectListView", "ProjectDetailView",
     "DependencyCreateView", "InitiateProjectBuildView", "ProjectBuildListView",
     "ProjectBuildDetailView", "DependencyListView", "DependencyDetailView",
-    "ProjectUpdateView", "ProjectDependenciesView"
+    "ProjectUpdateView", "ProjectDependenciesView", "DependencyUpdateView",
 ]
