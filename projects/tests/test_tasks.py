@@ -107,7 +107,6 @@ class ProcessBuildDependenciesTest(TestCase):
         from projects.helpers import build_project
         projectbuild = build_project(self.project, queue_build=False)
 
-
         for job in [dependency1.job, dependency2.job]:
             build = BuildFactory.create(
                 job=job, build_id=projectbuild.build_key, phase="FINISHED")
@@ -120,8 +119,9 @@ class ProcessBuildDependenciesTest(TestCase):
 
     def test_auto_track_dependency_triggers_project_build_creation(self):
         """
-        If we record a build of a project dependency that is auto-tracked, then
-        this should trigger the creation of a new ProjectBuild for that project.
+        If we record a build of a project dependency that is auto-tracked,
+        then this should trigger the creation of a new ProjectBuild for that
+        project.
         """
         dependency1 = DependencyFactory.create()
         ProjectDependency.objects.create(

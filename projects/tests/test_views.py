@@ -4,14 +4,15 @@ from django.contrib.auth.models import User
 from django_webtest import WebTest
 import mock
 
+from jenkins.models import Job
+from jenkins.tasks import delete_job_from_jenkins
+from jenkins.tests.factories import (
+    BuildFactory, JobFactory, JobTypeFactory, JenkinsServerFactory)
 from projects.models import (
     ProjectDependency, Project, Dependency, ProjectBuildDependency)
 from projects.helpers import build_project
-from jenkins.models import Job
 from .factories import (
     ProjectFactory, DependencyFactory, ProjectBuildFactory)
-from jenkins.tests.factories import (
-    BuildFactory, JobFactory, JobTypeFactory, JenkinsServerFactory)
 
 
 # TODO Introduce subclass of WebTest that allows easy assertions that a page
@@ -357,8 +358,8 @@ class DependencyUpdateTest(WebTest):
 
     def test_dependency_update(self):
         """
-        We can go from the DependencyDetail view to the DependencyUpdateView and
-        modify the parameters for a Job.
+        We can go from the DependencyDetail view to the DependencyUpdateView
+        and modify the parameters for a Job.
         """
         dependency = DependencyFactory.create()
         project = ProjectFactory.create()
@@ -549,3 +550,59 @@ class ProjectDependenciesTest(WebTest):
         self.assertEqual(
             [dependency],
             list(response.context["builds_header"]))
+
+
+class DependencyDeleteTest(WebTest):
+
+    def setUp(self):
+        self.user = User.objects.create_superuser(
+            "testing", "testing@example.com", "password")
+
+    def test_dependency_delete(self):
+        """
+        We can delete Dependencies that are not associated with any Projects.
+        """
+        dependency = DependencyFactory.create()
+        url = reverse("dependency_detail", kwargs={"pk": dependency.pk})
+        response = self.app.get(url, user="testing")
+
+        response = response.click("Delete dependency")
+        self.assertNotContains(
+            response,
+            "This dependency cannot be deleted because it has associated "
+            "projects.")
+        self.assertContains(
+            response,
+            "This will delete this dependency and the Jenkins job that it "
+            "relies on.")
+
+        with mock.patch("projects.views.delete_job_from_jenkins") as task_mock:
+            response = response.form.submit().follow()
+
+        task_mock.delay.assert_called_once_with(dependency.job.pk)
+        self.assertContains(
+            response, "Dependency '%s' deleted." % dependency.name)
+        self.assertIsNone(Dependency.objects.filter(pk=dependency.pk).first())
+
+    def test_dependency_delete_associated_with_a_project(self):
+        """
+        If a Dependency is associated with a Project, we get an appropriate
+        error message.
+        """
+        dependency = DependencyFactory.create()
+        project = ProjectFactory.create()
+        ProjectDependency.objects.create(
+            project=project, dependency=dependency)
+        url = reverse("dependency_detail", kwargs={"pk": dependency.pk})
+        response = self.app.get(url, user="testing")
+
+        response = response.click("Delete dependency")
+
+        self.assertContains(
+            response,
+            "This dependency cannot be deleted because it has associated "
+            "projects.")
+        self.assertNotContains(
+            response,
+            "This will delete this dependency and the Jenkins job that it "
+            "relies on.")

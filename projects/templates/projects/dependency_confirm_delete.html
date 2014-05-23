@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% load bootstrap3 %}
+{% load capomastro_bootstrap %}
+{% load jenkins_tags %}
+{% load projects_tags %}
+
+{% block page_title %}Dependency {{ dependency.name }}{% endblock %}
+{% block page_class %}dependency{% endblock %}
+
+{% block content %}
+<div class="container">
+  <div class="row">
+    <h3>Projects</h3>
+    {% if projects.count > 0 %}<p>This dependency cannot be deleted because it has associated projects.</p>{% endif %}
+    <table class="table table-striped">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Description</th>
+          <th>Builds</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for project in projects %}
+        <tr>
+          <td><a href="{% url 'project_detail' project.pk %}">{{ project.name }}</a></td>
+          <td>{{ project.description|default:"No description" }}</td>
+          <td><a href="{% url 'project_projectbuild_list' pk=project.pk %}">{{ project.projectbuild_set.count }}</a></td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="2">This dependency is not used in any projects.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% if projects.count < 1%}
+      <form action="" method="post" class="form" id="confirm">
+        <p class="bg-danger">This will delete this dependency and the Jenkins job that it relies on.</p>
+        {% csrf_token %}
+        {% buttons %}
+          <button type="submit" class="btn">Confirm delete »</button>
+          <a href="{% url 'dependency_detail' pk=dependency.pk %}" class="btn btn-primary" role="button">Cancel »</a>
+        {% endbuttons %}
+      </form>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

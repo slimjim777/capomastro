@@ -1,6 +1,6 @@
 from django.shortcuts import get_object_or_404
 from django.views.generic import (
-    CreateView, ListView, DetailView, FormView, UpdateView)
+    CreateView, ListView, DetailView, FormView, UpdateView, DeleteView)
 from django.contrib import messages
 from django.core.urlresolvers import reverse
 from django.http import HttpResponseRedirect
@@ -9,6 +9,7 @@ from braces.views import (
     LoginRequiredMixin, PermissionRequiredMixin, FormValidMessageMixin)
 
 from jenkins.models import Build
+from jenkins.tasks  import delete_job_from_jenkins
 from projects.models import (
     Project, Dependency, ProjectDependency, ProjectBuild,
     ProjectBuildDependency)
@@ -249,9 +250,43 @@ class DependencyUpdateView(
         return reverse("dependency_detail", kwargs={"pk": self.object.pk})
 
 
+class DependencyDeleteView(
+    LoginRequiredMixin, PermissionRequiredMixin, DeleteView):
+
+    permission_required = "projects.delete_dependency"
+    model = Dependency
+
+    def delete(self, request, *args, **kwargs):
+        response = super(DependencyDeleteView, self).delete(
+            request, *args, **kwargs)
+        messages.add_message(
+        self.request, messages.INFO,
+            "Dependency '%s' deleted." % self.object.name)
+        delete_job_from_jenkins.delay(self.object.job.pk)
+        return response
+
+    def get_success_url(self):
+        return reverse("home")
+
+    def get_context_data(self, **kwargs):
+        """
+        Supplement the dependency.
+        """
+        context = super(
+            DependencyDeleteView, self).get_context_data(**kwargs)
+        context["projects"] = Project.objects.filter(
+            dependencies=context["dependency"])
+        if context["dependency"].is_building:
+            messages.add_message(
+                self.request, messages.INFO,
+                "Dependency currently building")
+        return context
+
+
 __all__ = [
     "ProjectCreateView", "ProjectListView", "ProjectDetailView",
     "DependencyCreateView", "InitiateProjectBuildView", "ProjectBuildListView",
     "ProjectBuildDetailView", "DependencyListView", "DependencyDetailView",
     "ProjectUpdateView", "ProjectDependenciesView", "DependencyUpdateView",
+    "DependencyDeleteView"
 ]

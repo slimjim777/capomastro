@@ -5,8 +5,7 @@ from django.contrib.auth.models import User
 from django.utils import timezone
 
 from projects.models import (
-    Dependency, ProjectDependency, ProjectBuild, generate_projectbuild_id,
-    ProjectBuildDependency)
+    Dependency, ProjectDependency, ProjectBuild, generate_projectbuild_id)
 from projects.tasks import process_build_dependencies
 from .factories import (
     ProjectFactory, DependencyFactory, ProjectBuildFactory)

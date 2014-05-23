@@ -16,4 +16,5 @@ urlpatterns = patterns("",
     url(r"^dependencies/$", DependencyListView.as_view(), name="dependency_list"),
     url(r"^dependencies/(?P<pk>\d+)/$", DependencyDetailView.as_view(), name="dependency_detail"),
     url(r"^dependencies/(?P<pk>\d+)/edit/$", DependencyUpdateView.as_view(), name="dependency_update"),
+    url(r"^dependencies/(?P<pk>\d+)/delete/$", DependencyDeleteView.as_view(), name="dependency_delete"),
 )
