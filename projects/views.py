@@ -22,6 +22,7 @@ class ProjectCreateView(
     LoginRequiredMixin, PermissionRequiredMixin, FormValidMessageMixin,
         CreateView):
 
+    raise_exception = True
     permission_required = "projects.add_project"
     form_valid_message = "Project created"
     model = Project
@@ -40,6 +41,7 @@ class ProjectUpdateView(
     LoginRequiredMixin, PermissionRequiredMixin, FormValidMessageMixin,
         UpdateView):
 
+    raise_exception = True
     permission_required = "projects.change_project"
     form_valid_message = "Project updated"
     model = Project
@@ -162,6 +164,7 @@ class DependencyCreateView(
     LoginRequiredMixin, PermissionRequiredMixin, FormValidMessageMixin,
         CreateView):
 
+    raise_exception = True
     permission_required = "projects.add_dependency"
     form_valid_message = "Dependency created"
     form_class = DependencyForm
