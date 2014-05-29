@@ -4,8 +4,17 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
 from django.utils.encoding import python_2_unicode_compatible
+from django.core.exceptions import ValidationError
 
 from jenkins.models import Job, Build, Artifact
+
+
+def validate_parameters(value):
+    try:
+        split_parameters(value)
+    except ValueError:
+        raise ValidationError(
+            "Invalid parameters entered.  Must be separated by newline.")
 
 
 @python_2_unicode_compatible
@@ -14,7 +23,8 @@ class Dependency(models.Model):
     name = models.CharField(max_length=255, unique=True)
     job = models.ForeignKey(Job, null=True)
     description = models.TextField(null=True, blank=True)
-    parameters = models.TextField(null=True, blank=True)
+    parameters = models.TextField(
+        null=True, blank=True, validators=[validate_parameters])
 
     class Meta:
         verbose_name_plural = "dependencies"
@@ -38,14 +48,10 @@ class Dependency(models.Model):
 
         If we have no parameters, we should get None back.
         """
-        if not self.parameters:
+        try:
+            return split_parameters(self.parameters)
+        except ValueError:
             return
-        build_parameters = {}
-        keyvalues = self.parameters.split("\n")
-        for keyvalue in keyvalues:
-            key, value = keyvalue.split("=")
-            build_parameters[key.strip()] = value.strip()
-        return build_parameters
 
     @property
     def is_building(self):
@@ -191,3 +197,17 @@ def generate_projectbuild_id(projectbuild):
                "project": projectbuild.project}
     today_count = ProjectBuild.objects.filter(**filters).count()
     return today.strftime("%%Y%%m%%d.%d" % today_count)
+
+
+def split_parameters(parameters):
+    """
+    Splits the parameters string into a dictionary of parameters.
+    """
+    if not parameters:
+        return
+    build_parameters = {}
+    keyvalues = [x for x in parameters.split("\n") if x.strip()]
+    for keyvalue in keyvalues:
+        key, value = keyvalue.split("=")
+        build_parameters[key.strip()] = value.strip()
+    return build_parameters
