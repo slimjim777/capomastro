@@ -1,3 +1,5 @@
+import logging
+
 from django.utils import timezone
 
 from celery.utils.log import get_task_logger
@@ -85,15 +87,19 @@ def create_projectbuilds_for_autotracking(build):
     If we have have projects that are autotracking the dependency associated
     with this build, then we should create project builds for them.
     """
+    logging.debug("Autocreating projectbuilds for build %s", build)
     build_dependency = get_projectbuild_dependency_for_build(build)
     # At this point, we need to identify Projects which have this
     # dependency and create ProjectBuilds for them.
     for dependency in build.job.dependency_set.all():
+        logging.debug("Processing dependency %s", dependency)
         for project_dependency in dependency.projectdependency_set.filter(
                 auto_track=True):
+            logging.debug("Processing %s", project_dependency)
             if (build_dependency is not None and
-                    build_dependency.dependency == project_dependency.dependency):
+                    build_dependency.projectbuild.project == project_dependency.project):
                 continue
+            logging.debug("  autocreating projectbuild")
             # We have a Project with a an auto-tracked element.
             projectbuild = build_project(
                 project_dependency.project, dependencies=None,

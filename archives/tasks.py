@@ -1,36 +1,33 @@
 import logging
-import urlparse
 
 from django.utils import timezone
 
-from celery.utils.log import get_task_logger
 from celery import shared_task
 
 from archives.helpers import get_default_archive
-from archives.models import Archive
-from projects.models import ProjectBuildDependency
+from archives.models import ArchiveArtifact
 from jenkins.models import Build
-
-logger = get_task_logger(__name__)
 
 
 @shared_task
-def archive_artifact_from_jenkins(artifact_pk, archive_pk):
+def archive_artifact_from_jenkins(archiveartifact_pk):
     """
     Schedule the transfer of the file in the artifact to the specified archive.
     """
-    archive = Archive.objects.get(pk=archive_pk)
-    item = archive.items.get(artifact__pk=artifact_pk)
+    item = ArchiveArtifact.objects.get(pk=archiveartifact_pk)
+    logging.info("Archiving %s in archive %s", item, item.archive)
 
-    transport = archive.get_transport()
+    transport = item.archive.get_transport()
     artifact = item.artifact
     server = artifact.build.job.server
     transport.start()
+    logging.info("  %s -> %s", artifact.url, item.archived_path)
     transport.archive_url(
-        artifact.url, item.archived_path,
+        item.artifact.url, item.archived_path,
         username=server.username, password=server.password)
     transport.end()
     item.archived_at = timezone.now()
+    logging.info("  archived at %s", item.archived_at)
     item.save()
 
 
@@ -43,19 +40,13 @@ def process_build_artifacts(build_pk):
     Jenkins for a build.
     """
     build = Build.objects.get(pk=build_pk)
-    logger.info("Processing build artifacts from build %s" % build)
-    if build.build_id:
-        dependency = ProjectBuildDependency.objects.filter(
-            dependency__job=build.job,
-            projectbuild__build_key=build.build_id).first()
-        # TODO: Handle generic dependency builds.
-        if dependency:
-            projectbuild = dependency.projectbuild
-            archive = get_default_archive()
-            if archive:
-                items = archive.archive_projectbuild(projectbuild)
-                for item in items:
-                    archive_artifact_from_jenkins.delay(item.artifact.pk, archive.pk)
-            else:
-                logger.info("No default archiver - projectbuild not automatically archived.")
+    logging.info("Processing build artifacts from build %s %d", build, build_pk)
+    archive = get_default_archive()
+    if archive:
+       items = archive.add_build(build)
+       logging.info("Archiving %s", items)
+       for item in items:
+           archive_artifact_from_jenkins.delay(item.pk)
+    else:
+        logging.info("No default archiver - build not automatically archived.")
     return build_pk

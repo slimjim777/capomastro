@@ -71,12 +71,13 @@ class Build(models.Model):
     status = models.CharField(max_length=255)
     console_log = models.TextField(blank=True, null=True, editable=False)
     parameters = fields.JSONField(blank=True, null=True, editable=False)
+    created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         ordering = ["-number"]
 
     def __str__(self):
-        return self.build_id
+        return self.build_id or "%s %s" % (self.job, self.number)
 
 
 @python_2_unicode_compatible

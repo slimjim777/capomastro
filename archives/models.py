@@ -1,9 +1,11 @@
+import logging
+
 from django.db import models
 from django.utils.encoding import python_2_unicode_compatible
 
-from jenkins.models import Artifact
-
+from jenkins.models import Artifact, Build
 from credentials.models import SshKeyPair
+from projects.models import ProjectBuildDependency, Dependency
 from archives.policies import CdimageArchivePolicy, DefaultPolicy
 from archives.transports import SshTransport, LocalTransport
 
@@ -44,37 +46,71 @@ class Archive(models.Model):
         """
         return TRANSPORTS.get(self.transport)(self)
 
-    def add_artifact(self, artifact, **kwargs):
+    def add_build(self, build):
+        """
+        Adds a build, with all artifacts to the archive.
+
+        If this is a dependency build with no project dependencies, then we can
+        simply archive that item.
+
+        Otherwise we archive the item, and add each of the projectbuild
+        dependencies too.
+        """
+        logging.info("Adding build %s", build)
+        # Is this a project build dependency, or just a dependency build?
+        if not build.projectbuild_dependencies.exists():
+            items = self.add_dependency_build(build)
+        else:
+            items = self.add_dependency_build(build)
+            items.extend(self.add_projectbuild_build(build))
+        return items
+
+    def add_dependency_build(self, build):
+        """
+        This adds dependency-only builds to the archive.
+        """
+        logging.info("    processing dependency builds")
+        items = []
+        for artifact in build.artifact_set.all():
+            logging.info("Adding artifact %s", artifact)
+            for dependency in build.job.dependency_set.all():
+                items.append(self.add_artifact(
+                    artifact, build, dependency=dependency))
+        return items
+
+    def add_projectbuild_build(self, build):
+        """
+        This adds projectbuild builds to the archive.
+        """
+        logging.info("    processing projectbuilds")
+        items = []
+        for artifact in build.artifact_set.all():
+            for dependency in build.projectbuild_dependencies.all():
+                logging.info("Adding artifact %s", artifact)
+                items.append(self.add_artifact(
+                    artifact, build, dependency=dependency.dependency,
+                    projectbuild_dependency=dependency))
+        return items
+
+    def add_artifact(self, artifact, build, dependency=None, projectbuild_dependency=None):
         """
         Add an Artifact for this project.
         """
         policy = self.get_policy()
-        if not self.items.filter(artifact=artifact).exists():
-            item = self.items.create(
-                artifact=artifact,
-                archived_path=policy.get_path_for_artifact(artifact, **kwargs))
-            return item
+        projectbuild = projectbuild_dependency and projectbuild_dependency.projectbuild
+        return self.items.create(
+            artifact=artifact,
+            dependency=dependency,
+            build=build,
+            projectbuild_dependency=projectbuild_dependency,
+            archived_path=policy.get_path_for_artifact(
+                artifact, build=build, dependency=dependency, projectbuild=projectbuild))
 
-    def get_archived_artifact(self, artifact):
+    def get_archived_artifacts_for_build(self, build):
         """
-        Get an artifact from the archive.
+        Returns all artifacts for a specific build.
         """
-        try:
-            return self.items.get(artifact=artifact)
-        except ArchiveArtifact.DoesNotExist:
-            return
-
-    def archive_projectbuild(self, projectbuild):
-        """
-        Convenience method for archiving projectbuilds.
-        """
-        items = []
-        for artifact in projectbuild.get_current_artifacts():
-            item = self.add_artifact(artifact, projectbuild=projectbuild)
-            if item:
-                items.append(item)
-        return items
-
+        return self.items.filter(build=build)
 
 
 @python_2_unicode_compatible
@@ -85,5 +121,11 @@ class ArchiveArtifact(models.Model):
     archived_at = models.DateTimeField(blank=True, null=True)
     archived_path = models.CharField(max_length=255, blank=True, null=True)
 
+    build = models.ForeignKey(Build, blank=True, null=True)
+    projectbuild_dependency = models.ForeignKey(
+        ProjectBuildDependency, blank=True, null=True)
+    dependency = models.ForeignKey(
+        Dependency, blank=True, null=True)
+
     def __str__(self):
-        return self.archive.name
+        return "%s %s" % (self.artifact, self.archive)

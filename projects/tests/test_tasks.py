@@ -6,7 +6,9 @@ from projects.helpers import build_project
 from projects.models import (
     ProjectDependency, ProjectBuildDependency, ProjectBuild)
 from projects.tests.factories import DependencyFactory, ProjectFactory
-from projects.tasks import process_build_dependencies
+from projects.tasks import (
+    process_build_dependencies, create_projectbuilds_for_autotracking,
+    update_projectbuilds)
 from jenkins.tests.factories import BuildFactory
 
 
@@ -14,6 +16,19 @@ class ProcessBuildDependenciesTest(TestCase):
 
     def setUp(self):
         self.project = ProjectFactory.create()
+
+    def create_dependencies(self, count=1):
+        """
+        Utility function to create projects and dependencies.
+        """
+        project = ProjectFactory.create()
+        dependencies = [project]
+        for x in range(count):
+            dependency = DependencyFactory.create()
+            ProjectDependency.objects.create(
+                project=project, dependency=dependency)
+            dependencies.append(dependency)
+        return dependencies
 
     def test_auto_track_build(self):
         """
@@ -159,3 +174,51 @@ class ProcessBuildDependenciesTest(TestCase):
             projectbuild=projectbuild,
             dependency=dependency2)
         self.assertEqual(existing_build, build_dependency2.build)
+
+    def test_build_with_projectbuild_dependencies(self):
+        """
+        ProjectBuildDependencies should be tied to the newly created build.
+        """
+        project1, dependency1, dependency2 = self.create_dependencies(2)
+        project2 = ProjectFactory.create()
+        ProjectDependency.objects.create(
+                project=project2, dependency=dependency2)
+
+        projectbuild = build_project(project1, queue_build=False)
+
+        build1 = BuildFactory.create(
+            job=dependency1.job, build_id=projectbuild.build_key)
+        process_build_dependencies(build1.pk)
+        dependencies = ProjectBuildDependency.objects.all().order_by(
+            "dependency__name")
+        self.assertEqual(
+            sorted([dependency1, dependency2], key=lambda x: x.name),
+            [b.dependency for b in dependencies])
+        self.assertEqual(
+            [None, build1], sorted([b.build for b in dependencies]))
+
+    def test_build_with_several_projectbuild_dependencies(self):
+        """
+        A build of dependency that's autotracked by several projects should
+        trigger creation of all projectbuilds correctly.
+        """
+        project1, dependency = self.create_dependencies()
+        project2 = ProjectFactory.create()
+        ProjectDependency.objects.create(
+                project=project2, dependency=dependency)
+
+        projectbuild = build_project(project1, queue_build=False)
+
+        build = BuildFactory.create(
+            job=dependency.job, build_id=projectbuild.build_key)
+
+        process_build_dependencies(build.pk)
+
+        self.assertEqual(
+            [dependency, dependency],
+            sorted([b.dependency for b in
+              ProjectBuildDependency.objects.all()]))
+        self.assertEqual(
+            [build, build],
+            sorted([b.build for b in
+              ProjectBuildDependency.objects.all()]))
