@@ -52,6 +52,7 @@ class Dependency(models.Model):
             return split_parameters(self.parameters)
         except ValueError:
             return
+        return build_parameters
 
     @property
     def is_building(self):
