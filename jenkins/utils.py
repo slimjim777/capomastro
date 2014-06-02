@@ -77,10 +77,11 @@ class DefaultSettings(object):
 
 xpath = ".//hudson.model.ParametersDefinitionProperty/parameterDefinitions/"
 
+
 def parse_parameters_from_job(body):
     """
-    Parses the supplied XML document and extracts all parameters, returns a list
-    of dictionaries with the details of the parameters extracted.
+    Parses the supplied XML document and extracts all parameters, returns a
+    list of dictionaries with the details of the parameters extracted.
     """
     result = []
     root = ET.fromstring(body)

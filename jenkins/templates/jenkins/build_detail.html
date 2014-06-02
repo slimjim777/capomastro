@@ -26,9 +26,21 @@
     </table>
   </div>
 
-  <div>
+  <div class="row">
+    <h3>Build Parameters</h3>
+    <table class="table table-striped">
+      <tbody>
+        {% for param in build.parameters %}
+        <tr><th>{{ param.name }}</th><td>{{ param.value|default:"Not supplied" }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="row">
     <h3>Console</h3>
     <pre>{{ build.console_log }}</pre>
   </div>
+
 </div>
 {% endblock %}
