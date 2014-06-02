@@ -59,6 +59,9 @@ class Dependency(models.Model):
         """
         Returns True if we believe this dependency is currently being built
         on a server.
+
+        TODO: What happens if we never get the "FINISHED" / "COMPLETED"
+        notifications?
         """
         return Build.objects.filter(
             job=self.job, phase="STARTED").exists()

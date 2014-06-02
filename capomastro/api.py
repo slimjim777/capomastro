@@ -1,7 +1,13 @@
+from django.shortcuts import get_object_or_404
+
 from rest_framework import viewsets, routers, serializers
+from rest_framework.decorators import action
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
 
 from jenkins.models import JenkinsServer, Job, JobType, Build, Artifact
 from projects.models import Project, Dependency
+from projects.helpers import build_dependency
 
 
 class JenkinsServerViewSet(viewsets.ModelViewSet):
@@ -43,6 +49,18 @@ class ProjectViewSet(viewsets.ModelViewSet):
 class DependencyViewSet(viewsets.ModelViewSet):
     model = Dependency
 
+    @action(permission_classes=[IsAuthenticated])
+    def build_dependency(self, request, pk=None):
+        """
+        We can request the build of a dependency through the API.
+
+        TODO: Should we return a different HTTP Code if we are already building
+        and don't start a new build?
+        """
+        dependency = get_object_or_404(Dependency, pk=pk)
+        if not dependency.is_building:
+            build_dependency(dependency)
+        return Response("", status=202)
 
 router = routers.DefaultRouter()
 router.register(r"servers", JenkinsServerViewSet)
