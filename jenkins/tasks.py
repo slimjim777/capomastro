@@ -64,9 +64,12 @@ def import_build_for_job(build_pk):
         "duration": build_result._data["duration"],
         "url": build_result.get_result_url(),
         "console_log": build_result.get_console(),
+        "parameters": build_result.get_actions()["parameters"],
     }
-    logging.info("Processing build details for %s #%d" % (build.job, build.number))
-    Build.objects.filter(job=build.job, number=build.number).update(**build_details)
+    logging.info("Processing build details for %s #%d" % (
+        build.job, build.number))
+    Build.objects.filter(
+        job=build.job, number=build.number).update(**build_details)
     build = Build.objects.get(job=build.job, number=build.number)
     for artifact in build_result.get_artifacts():
         artifact_details = {
@@ -85,7 +88,6 @@ def delete_job_from_jenkins(job_pk):
     Deletes a job from its Jenkins server.
     """
     job = Job.objects.get(pk=job_pk)
-    xml = get_job_xml_for_upload(job, job.server)
     client = job.server.get_client()
 
     return client.delete_job(job.name)

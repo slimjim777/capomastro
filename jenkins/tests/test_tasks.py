@@ -106,6 +106,8 @@ class ImportBuildTaskTest(TestCase):
         mock_build.get_result_url.return_value = "http://localhost/123"
         mock_build.get_console.return_value = "This is the log"
         mock_build.get_artifacts.return_value = []
+        parameters = [{"name": "BUILD_ID", "value": ""}]
+        mock_build.get_actions.return_value = {"parameters": parameters}
 
         with mock.patch("jenkins.tasks.logging") as mock_logging:
             with mock.patch("jenkins.models.Jenkins") as mock_jenkins:
@@ -125,6 +127,7 @@ class ImportBuildTaskTest(TestCase):
         self.assertEqual(1000, build.duration)
         self.assertEqual("SUCCESS", build.status)
         self.assertEqual("This is the log", build.console_log)
+        self.assertEqual(parameters, build.parameters)
 
 
 job_xml = """

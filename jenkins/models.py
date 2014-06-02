@@ -3,6 +3,7 @@ from django.utils.encoding import python_2_unicode_compatible
 
 from jenkinsapi.jenkins import Jenkins
 from jenkins.utils import parse_parameters_from_job
+from jenkins import fields
 
 
 @python_2_unicode_compatible
@@ -69,6 +70,7 @@ class Build(models.Model):
     phase = models.CharField(max_length=25)  # FINISHED, STARTED, COMPLETED
     status = models.CharField(max_length=255)
     console_log = models.TextField(blank=True, null=True, editable=False)
+    parameters = fields.JSONField(blank=True, null=True, editable=False)
 
     class Meta:
         ordering = ["-number"]

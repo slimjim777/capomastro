@@ -50,4 +50,5 @@ def postprocess_build(build):
     """
     post_build_tasks = getattr(settings, "POST_BUILD_TASKS", [])
     additional_tasks = [x.s() for x in post_build_tasks]
-    return chain(import_build_for_job.s(build.pk), *additional_tasks).apply_async()
+    return chain(
+        import_build_for_job.s(build.pk), *additional_tasks).apply_async()
