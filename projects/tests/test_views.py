@@ -7,7 +7,8 @@ import mock
 from jenkins.models import Job
 from jenkins.tasks import delete_job_from_jenkins
 from jenkins.tests.factories import (
-    BuildFactory, JobFactory, JobTypeFactory, JenkinsServerFactory)
+    BuildFactory, JobFactory, JobTypeFactory, JenkinsServerFactory,
+    job_with_parameters)
 from projects.models import (
     ProjectDependency, Project, Dependency, ProjectBuildDependency)
 from projects.helpers import build_project
@@ -423,6 +424,26 @@ class DependencyUpdateTest(WebTest):
         self.assertContains(
             response,
             "Invalid parameters entered.  Must be separated by newline.")
+
+    def test_dependency_update_context_has_parameters(self):
+        """
+        The dependency update view should include the list of parameters in the
+        jobtype, excluding the BUILD_ID.
+        """
+        dependency = DependencyFactory.create()
+        dependency.job.jobtype.config_xml = job_with_parameters
+        dependency.job.jobtype.save()
+        project = ProjectFactory.create()
+        ProjectDependency.objects.create(
+            project=project, dependency=dependency)
+        url = reverse("dependency_update", kwargs={"pk": dependency.pk})
+        response = self.app.get(url, user="testing")
+
+        self.assertEqual([
+              {"name": "BRANCH_TO_CHECKOUT",
+               "description": "Branch to checkout and build.",
+               "defaultValue": "http:///launchpad.net/mybranch"}],
+            response.context["parameters"])
 
 
 class InitiateProjectBuildTest(WebTest):

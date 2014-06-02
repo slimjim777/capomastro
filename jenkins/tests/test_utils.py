@@ -7,8 +7,8 @@ import mock
 from jenkins.utils import (
     get_notifications_url, DefaultSettings, get_job_xml_for_upload,
     get_context_for_template, generate_job_name, parse_parameters_from_job)
-from .factories import JobFactory, JobTypeFactory, JenkinsServerFactory
-from .fixtures import job_with_parameters
+from .factories import (
+    JobFactory, JobTypeFactory, JenkinsServerFactory, JobTypeWithParamsFactory)
 
 
 class NotificationUrlTest(SimpleTestCase):
@@ -157,7 +157,10 @@ class ParseParametersFromJob(TestCase):
 
     def test_parse_parameters_from_job(self):
         """
+        parse_parameters_from_job should extract the parameters from the job XML
+        document and return the details.
         """
+        jobtype = JobTypeWithParamsFactory.build()
         self.assertEqual([
           {"name": "BUILD_ID",
            "description": "The projectbuild id to associate with.",
@@ -165,4 +168,4 @@ class ParseParametersFromJob(TestCase):
           {"name": "BRANCH_TO_CHECKOUT",
            "description": "Branch to checkout and build.",
            "defaultValue": "http:///launchpad.net/mybranch"}],
-          parse_parameters_from_job(job_with_parameters))
+          parse_parameters_from_job(jobtype.config_xml))

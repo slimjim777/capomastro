@@ -10,6 +10,7 @@ from braces.views import (
 
 from jenkins.models import Build
 from jenkins.tasks  import delete_job_from_jenkins
+from jenkins.utils import parse_parameters_from_job
 from projects.models import (
     Project, Dependency, ProjectDependency, ProjectBuild,
     ProjectBuildDependency)
@@ -251,6 +252,18 @@ class DependencyUpdateView(
 
     def get_success_url(self):
         return reverse("dependency_detail", kwargs={"pk": self.object.pk})
+
+    def get_context_data(self, **kwargs):
+        """
+        Supplement the dependency.
+        """
+        context = super(
+            DependencyUpdateView, self).get_context_data(**kwargs)
+        params = [x for x in
+                  parse_parameters_from_job(self.object.job.jobtype.config_xml)
+                  if x["name"] != "BUILD_ID"]
+        context["parameters"] = params
+        return context
 
 
 class DependencyDeleteView(

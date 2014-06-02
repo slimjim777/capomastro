@@ -12,6 +12,27 @@
       <form action="" method="post" class="form" id="dependency">
         {% csrf_token %}
         {% bootstrap_form form %}
+
+        {% if parameters %}
+        <table class="table table-striped">
+          <thead>
+            <tr>
+              <th>Parameter</th>
+              <th>Default</th>
+              <th>Type</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for param in parameters %}
+            <tr>
+              <td>{{ param.name }}</td>
+              <td>{{ param.description }}</td>
+              <td>{{ param.defaultValue|default:"" }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% endif %}
         {% buttons %}
           <button type="submit" class="btn btn-primary">Submit</button>
         {% endbuttons %}

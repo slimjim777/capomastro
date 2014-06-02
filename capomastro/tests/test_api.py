@@ -1,13 +1,9 @@
-from django.test import TestCase
 from django.core.urlresolvers import reverse
 from django.contrib.auth.models import User
 
 from rest_framework.test import APITestCase
-from rest_framework.authtoken.models import Token
 
-from jenkins.models import JobType
-from jenkins.tests.fixtures import job_with_parameters
-from jenkins.tests.factories import JobTypeFactory
+from jenkins.tests.factories import JobTypeWithParamsFactory
 
 
 class JobTypeAPITest(APITestCase):
@@ -20,7 +16,7 @@ class JobTypeAPITest(APITestCase):
         The JobType resource should expose the parameters.
         """
         self.client.force_authenticate(user=self.user)
-        job_type = JobTypeFactory.create(config_xml=job_with_parameters)
+        job_type = JobTypeWithParamsFactory.create()
 
         url = reverse("jobtype-list")
         response = self.client.get(url)
