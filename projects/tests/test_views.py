@@ -270,6 +270,25 @@ class DependencyCreateTest(WebTest):
             "MYVALUE=this is a test\nNEWVALUE=testing",
             new_dependency.parameters)
 
+    def test_create_dependency_with_invalid_parameters(self):
+        """
+        If we attempt to create a dependency with invalid parameters, we should
+        get an appropriate message.
+        """
+        project_url = reverse("dependency_create")
+        response = self.app.get(project_url, user="testing")
+
+        form = response.forms["dependency"]
+        form["jobtype"].select(self.jobtype.pk)
+        form["server"].select(self.server.pk)
+        form["name"].value = "My Dependency"
+        form["parameters"].value = "MYVALUE=this is a test NEWVALUE=testing"
+
+        response = form.submit()
+        self.assertContains(
+            response,
+            "Invalid parameters entered.  Must be separated by newline.")
+
 
 class DependencyDetailTest(WebTest):
 
@@ -382,6 +401,28 @@ class DependencyUpdateTest(WebTest):
         self.assertEqual("My New Dependency", dependency.name)
         self.assertEqual("New Description", dependency.description)
         self.assertEqual("TESTING=2\n", dependency.parameters)
+
+    def test_dependency_update_with_bad_parameters(self):
+        """
+        When updating a dependency, we shouldn't allow badly formed
+        parameters.
+        """
+        dependency = DependencyFactory.create()
+        project = ProjectFactory.create()
+        ProjectDependency.objects.create(
+            project=project, dependency=dependency)
+        url = reverse("dependency_detail", kwargs={"pk": dependency.pk})
+        response = self.app.get(url, user="testing")
+
+        response = response.click("Edit dependency")
+
+        form = response.forms["dependency"]
+        form["parameters"] = "TESTING=2 TESTING=3\n"
+
+        response = form.submit()
+        self.assertContains(
+            response,
+            "Invalid parameters entered.  Must be separated by newline.")
 
 
 class InitiateProjectBuildTest(WebTest):

@@ -58,6 +58,14 @@ class DependencyTest(TestCase):
         dependency = DependencyFactory.create(parameters=None)
         self.assertIsNone(dependency.get_build_parameters())
 
+    def test_get_parameters_with_multiple_items_on_one_line(self):
+        """
+        If we have more than one parameter on one line, it's invalid, and so we
+        should not get an error.
+        """
+        dependency = DependencyFactory.create(parameters='TESTING1="testing" TESTING2="testing"')
+        self.assertIsNone(dependency.get_build_parameters())
+
     def test_is_dependency_building(self):
         """
         is_building should return True if we have an active build for
