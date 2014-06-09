@@ -82,7 +82,7 @@ You can use [Docker](http://www.docker.com/) to run Capomastro, but be aware:
 this application is dependent on connections to other systems (e.g.,
 PostgreSQL, Jenkins, RabbitMQ) and you will need to configure your settings
 before building a Docker image. The image built from the included `Dockerfile`
-is meant a base image - you should build your customisations (e.g., settings)
+is meant as a base image - you should build your customisations (e.g., settings)
 on top of this.
 
 To build an image to experiment with (assuming you have Docker installed):
