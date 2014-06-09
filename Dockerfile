@@ -24,5 +24,3 @@ RUN pip install -r requirements.txt
 ENTRYPOINT ["./manage.py"]
 
 CMD ["help"]
-
-EXPOSE 8000
