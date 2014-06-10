@@ -3,7 +3,6 @@ Django>=1.6.2
 django-bootstrap3==4.2.0
 django-braces==1.4.0
 djangorestframework==2.3.13
-gunicorn==18.0
 jenkinsapi==0.2.19
 paramiko==1.13.0
 psycopg2==2.5.2

@@ -74,3 +74,21 @@ Testing
 Assuming you have [tox](https://testrun.org/tox/latest/) installed, run:
 
     $ tox
+
+Docker
+------
+
+You can use [Docker](http://www.docker.com/) to run Capomastro, but be aware:
+this application is dependent on connections to other systems (e.g.,
+PostgreSQL, Jenkins, RabbitMQ) and you will need to configure your settings
+before building a Docker image. The image built from the included `Dockerfile`
+is meant as a base image - you should build your customisations (e.g., settings)
+on top of this.
+
+To build an image to experiment with (assuming you have Docker installed):
+
+```
+$ cp capomastro/local_settings.py.example capomastro/local_settings.py
+$ docker build -t capomastro .
+$ docker run capomastro
+```
