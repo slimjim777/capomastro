@@ -124,7 +124,9 @@ class ProjectBuildDependency(models.Model):
     """
     projectbuild = models.ForeignKey(
         "ProjectBuild", related_name="dependencies")
-    build = models.ForeignKey(Build, blank=True, null=True)
+    build = models.ForeignKey(
+        Build, blank=True, null=True,
+        related_name="projectbuild_dependencies")
     dependency = models.ForeignKey(Dependency)
 
     class Meta:

@@ -24,8 +24,8 @@ class LocalTransportTest(TestCase):
 
     def test_archive_file(self):
         """
-        LocalTransport should copy the file from the supplied fileobj to a local
-        path.
+        LocalTransport should copy the file from the supplied fileobj to a
+        local path.
         """
         transport = LocalTransport(self.archive)
         fakefile = StringIO(u"This is the artifact")
@@ -36,8 +36,8 @@ class LocalTransportTest(TestCase):
 
     def test_archive_from_url(self):
         """
-        archive_from_url takes a valid URL and opens the file and then passes it
-        to archive_file.
+        archive_from_url takes a valid URL and opens the file and then passes
+        it to archive_file.
         """
         fakefile = StringIO(u"Entirely new artifact")
 
@@ -78,28 +78,32 @@ class SshTransportTest(TestCase):
 
     def test_get_ssh_clients(self):
         """
-        _get_ssh_clients should return an SSHClient and SFTPClient configured to
-        talk to the archive"s credentials.
+        _get_ssh_clients should return an SSHClient and SFTPClient configured
+        to talk to the archive's credentials.
         """
-        with mock.patch.object(self.archive.ssh_credentials, "get_pkey", return_value="KEY"):
+        with mock.patch.object(
+                self.archive.ssh_credentials, "get_pkey", return_value="KEY"):
             with mock.patch("archives.transports.SSHClient") as mock_client:
                 mock_client.return_value.get_transport.return_value = "MockTransport"
-                with mock.patch("archives.transports.SFTPClient") as mock_sftp:
-                    with mock.patch("archives.transports.WarningPolicy") as mock_hostpolicy:  # noqa
+                with mock.patch(
+                        "archives.transports.SFTPClient") as mock_sftp:
+                    with mock.patch(
+                            "archives.transports.WarningPolicy") as mock_hostpolicy:
                         mock_hostpolicy.return_value = "MockWarningPolicy"
                         transport = SshTransport(self.archive)
                         transport._get_ssh_clients()
 
         mock_client.return_value.assert_has_calls([
             mock.call.set_missing_host_key_policy("MockWarningPolicy"),
-            mock.call.connect("archive.example.com", username="testing", pkey="KEY"),
+            mock.call.connect(
+                "archive.example.com", username="testing", pkey="KEY"),
             mock.call.get_transport()])
         mock_sftp.from_transport.assert_called_once_with("MockTransport")
 
     def test_archive_file(self):
         """
-        archive_file should ensure that there's a directory relative to the base
-        to hold the file, and then stream the file to the remote server.
+        archive_file should ensure that there's a directory relative to the
+        base to hold the file, and then stream the file to the remote server.
         """
         mock_ssh = mock.Mock()
         mock_stdout = mock.Mock()

@@ -1,5 +1,3 @@
-import logging
-
 from celery.utils.log import get_task_logger
 from celery import shared_task
 
@@ -47,10 +45,10 @@ def import_build_for_job(build_pk):
     Import a build for a job.
     """
     build = Build.objects.get(pk=build_pk)
-    logging.info("Located job %s\n" % build.job)
+    logger.info("Located job %s\n" % build.job)
 
     client = build.job.server.get_client()
-    logging.info("Using server at %s\n" % build.job.server.url)
+    logger.info("Using server at %s\n" % build.job.server.url)
 
     jenkins_job = client.get_job(build.job.name)
     build_result = jenkins_job.get_build(build.number)
@@ -66,7 +64,7 @@ def import_build_for_job(build_pk):
         "console_log": build_result.get_console(),
         "parameters": build_result.get_actions()["parameters"],
     }
-    logging.info("Processing build details for %s #%d" % (
+    logger.info("Processing build details for %s #%d" % (
         build.job, build.number))
     Build.objects.filter(
         job=build.job, number=build.number).update(**build_details)
@@ -77,7 +75,7 @@ def import_build_for_job(build_pk):
             "url": artifact.url,
             "build": build
         }
-        logging.info("%s" % artifact_details)
+        logger.info("Importing artifact %s", artifact_details)
         Artifact.objects.create(**artifact_details)
     return build_pk
 
