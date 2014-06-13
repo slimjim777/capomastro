@@ -40,7 +40,7 @@ def process_build_artifacts(build_pk):
     Jenkins for a build.
     """
     build = Build.objects.get(pk=build_pk)
-    logging.info("Processing build artifacts from build %s %d", build, build_pk)
+    logging.info("Processing build artifacts from build %s %d", build, build.number)
     archive = get_default_archive()
     if archive:
        items = archive.add_build(build)
