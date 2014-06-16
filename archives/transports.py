@@ -2,6 +2,7 @@ import os
 import urllib2
 import logging
 import base64
+import subprocess
 
 from paramiko import SSHClient, WarningPolicy
 
@@ -34,6 +35,16 @@ class Transport(object):
         """
         raise NotImplemented
 
+    def generate_checksums(self, archived_artifact):
+        """
+        Generates checksum files for the specified artifact on the archive.
+        """
+        checksum_filename = "SHA256SUMS"
+        self._run_command("cd `dirname %s`; sha256sum %s >> %s" % (
+            archived_artifact.archived_path,
+            archived_artifact.artifact.filename,
+            checksum_filename))
+
     def get_relative_filename(self, filename):
         """
         We strip the leading / from the destination_path to root the new files
@@ -52,6 +63,12 @@ class Transport(object):
             "Basic " + base64.b64encode(username + ":" + password))
         f = urllib2.urlopen(request)
         self.archive_file(f, destination_path)
+
+    def _run_command(self, command):
+        """
+        Runs a command on the archive.
+        """
+        raise NotImplemented
 
 
 class LocalTransport(Transport):
@@ -79,6 +96,13 @@ class LocalTransport(Transport):
         open(filename, "w").write(fileobj.read())
         return filename
 
+    def _run_command(self, command):
+        """
+        Runs a command in a local shell.
+        """
+        # TODO: raise exception if the command fails
+        subprocess.Popen(command, shell=True).stdout.read()
+
 
 class SshTransport(Transport):
     """
@@ -99,6 +123,14 @@ class SshTransport(Transport):
             ssh_client.get_transport())
         return ssh_client, sftp_client
 
+    def _run_command(self, command):
+        """
+        Runs a command over the ssh connection, makes sure it finishes.
+        """
+        # TODO: raise exception if the command fails
+        _, stdout, _ = self.ssh_client.exec_command(command)
+        _ = stdout.channel.recv_exit_status()  # noqa
+
     def start(self):
         """
         Opens the ssh connection.
@@ -117,10 +149,8 @@ class SshTransport(Transport):
         the remote server, underneath the target's basedir.
         """
         destination =  self.get_relative_filename(filename)
-        _, stdout, _ = self.ssh_client.exec_command(
-            "mkdir -p `dirname %s`" % destination)
-        # TODO: raise exception if the command fails
-        _ = stdout.channel.recv_exit_status()  # noqa
+        self._run_command("mkdir -p `dirname %s`" % destination)
         logger.info(
             "SshTransport archiving artifact to %s", filename)
         self.sftp_client.stream_file_to_remote(fileobj, destination)
+

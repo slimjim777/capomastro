@@ -8,8 +8,16 @@ import os
 from django.test import TestCase
 import mock
 
+from archives.models import ArchiveArtifact
 from archives.transports import LocalTransport, SshTransport
 from .factories import ArchiveFactory
+from projects.tests.factories import (
+    ProjectFactory, DependencyFactory, ProjectBuildFactory)
+from projects.helpers import build_project
+from projects.models import ProjectDependency, ProjectBuildDependency
+from projects.tasks import process_build_dependencies
+from jenkins.models import Artifact
+from jenkins.tests.factories import ArtifactFactory, BuildFactory
 
 
 class LocalTransportTest(TestCase):
@@ -124,3 +132,35 @@ class SshTransportTest(TestCase):
             fakefile, "/var/tmp/temp/temp.gz")
 
         mock_ssh.close.assert_called_once()
+
+    def test_generate_checksums(self):
+        """
+        generate_checksums should send commands to the ssh client
+        to generate an sha256sum for the passed in archived artifact.
+        """
+        # a project with a build and an archived artifact
+        project = ProjectFactory.create()
+        dependency = DependencyFactory.create()
+        projectdependency = ProjectDependency.objects.create(
+            project=project, dependency=dependency)
+        projectbuild = build_project(project, queue_build=False)
+        build = BuildFactory.create(
+            job=dependency.job, build_id=projectbuild.build_key)
+        projectbuild_dependency = ProjectBuildDependency.objects.create(
+            build=build, projectbuild=projectbuild, dependency=dependency)
+        artifact = ArtifactFactory.create(
+            build=build, filename="artifact_filename")
+        archived_artifact = ArchiveArtifact.objects.create(
+            build=build, archive=self.archive, artifact=artifact,
+            archived_path="/srv/builds/200101.01/artifact_filename",
+            projectbuild_dependency=projectbuild_dependency)
+
+        transport = SshTransport(self.archive)
+
+        with mock.patch.object(transport, "_run_command") as mock_run:
+            transport.generate_checksums(archived_artifact)
+
+        mock_run.assert_called_once_with(
+            "cd `dirname /srv/builds/200101.01/artifact_filename`; "
+            "sha256sum artifact_filename >> SHA256SUMS")
+

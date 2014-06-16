@@ -5,8 +5,9 @@ from django.utils import timezone
 from celery import shared_task
 
 from archives.helpers import get_default_archive
-from archives.models import ArchiveArtifact
+from archives.models import ArchiveArtifact, Archive
 from jenkins.models import Build
+from projects.models import ProjectBuild
 
 
 @shared_task
@@ -40,7 +41,8 @@ def process_build_artifacts(build_pk):
     Jenkins for a build.
     """
     build = Build.objects.get(pk=build_pk)
-    logging.info("Processing build artifacts from build %s %d", build, build.number)
+    logging.info(
+        "Processing build artifacts from build %s %d", build, build.number)
     archive = get_default_archive()
     if archive:
        items = archive.add_build(build)
@@ -50,3 +52,22 @@ def process_build_artifacts(build_pk):
     else:
         logging.info("No default archiver - build not automatically archived.")
     return build_pk
+
+
+@shared_task
+def generate_checksums(build_pk):
+    """
+    This task should ask the archive transport to generate checksum files
+    for each project build the specified build has caused.
+    """
+    build = Build.objects.get(pk=build_pk)
+    archive = get_default_archive()
+    transport = archive.get_transport()
+    archived_artifacts = archive.get_archived_artifacts_for_build(build)
+    transport.start()
+    for artifact in archived_artifacts:
+        if artifact.projectbuild_dependency:
+            logging.info("Generating checksums for %s" % artifact)
+            transport.generate_checksums(artifact)
+    transport.end()
+

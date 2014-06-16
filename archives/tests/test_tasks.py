@@ -11,13 +11,13 @@ from django.test.utils import override_settings
 import mock
 
 from archives.tasks import (
-    archive_artifact_from_jenkins, process_build_artifacts)
-from archives.models import Archive
+    archive_artifact_from_jenkins, process_build_artifacts, generate_checksums)
+from archives.models import Archive, ArchiveArtifact
 from archives.transports import Transport
 from jenkins.tests.factories import ArtifactFactory, BuildFactory
 from projects.helpers import build_project
 from projects.tasks import process_build_dependencies
-from projects.models import ProjectDependency
+from projects.models import ProjectDependency, ProjectBuildDependency
 from projects.tests.factories import DependencyFactory, ProjectFactory
 from .factories import ArchiveFactory
 
@@ -27,7 +27,9 @@ class LoggingTransport(Transport):
     Test archiver that just logs the calls the Archiver
     code makes.
     """
-    log = []
+    def __init__(self, *args, **kwargs):
+        super(LoggingTransport, self).__init__(*args, **kwargs)
+        self.log = []
 
     def start(self):
         self.log.append("START")
@@ -37,6 +39,10 @@ class LoggingTransport(Transport):
 
     def archive_url(self, url, path, username, password):
         self.log.append("%s -> %s %s:%s" % (url, path, username, password))
+
+    def generate_checksums(self, archived_artifact):
+        self.log.append(
+            "Checksums generated for %s" % archived_artifact)
 
 
 class TransferFileToArchiveTaskTest(TestCase):
@@ -105,6 +111,50 @@ class TransferFileToArchiveTaskTest(TestCase):
             transport.log)
 
         self.assertIsNotNone(item.archived_at)
+
+
+class GenerateChecksumsTaskTest(TestCase):
+
+    def setUp(self):
+        self.basedir = tempfile.mkdtemp()
+
+    def tearDown(self):
+        shutil.rmtree(self.basedir)
+
+    @override_settings(CELERY_ALWAYS_EAGER=True)
+    def test_generate_checksums(self):
+        """
+        generate_checksums should call the generate_checksums method
+        on the transport from the archive with the build to generate
+        the checksums for.
+        """
+        project = ProjectFactory.create()
+        dependency = DependencyFactory.create()
+        projectdependency = ProjectDependency.objects.create(
+            project=project, dependency=dependency)
+        projectbuild = build_project(project, queue_build=False)
+        build = BuildFactory.create(
+            job=dependency.job, build_id=projectbuild.build_key)
+        projectbuild_dependency = ProjectBuildDependency.objects.create(
+            build=build, projectbuild=projectbuild, dependency=dependency)
+        artifact = ArtifactFactory.create(
+            build=build, filename="testing/testing.txt")
+        archive = ArchiveFactory.create(
+            transport="local", basedir=self.basedir, default=True)
+        archived_artifact = ArchiveArtifact.objects.create(
+            build=build, archive=archive, artifact=artifact,
+            archived_path="/srv/builds/200101.01/artifact_filename",
+            projectbuild_dependency=projectbuild_dependency)
+
+        transport = LoggingTransport(archive)
+
+        with mock.patch.object(
+                Archive, "get_transport", return_value=transport):
+            generate_checksums(build.pk)
+
+        self.assertEqual(
+            ["START", "Checksums generated for %s" % archived_artifact, "END"],
+            transport.log)
 
 
 class ProcessBuildArtifactsTaskTest(TestCase):
