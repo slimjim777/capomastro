@@ -77,6 +77,40 @@ class LocalTransportTest(TestCase):
 
         self.assertTrue(os.path.exists(dirname))
 
+    def test_link_filename_to_filename(self):
+        """
+        LocalTransport.link_filename_to_filename should hardlink the source to
+        the destination.
+        """
+        transport = LocalTransport(self.archive)
+        fakefile = StringIO("This is the artifact")
+
+        transport.archive_file(fakefile, "/temp/temp.gz")
+        transport.link_filename_to_filename("/temp/temp.gz", "/temp/temp1.gz")
+
+        filename1 = os.path.join(self.basedir, "temp/temp.gz")
+        # Test that the number of links to this file is 2
+        # (the original, and the newly created hardlink)
+        self.assertEqual(2, os.stat(filename1).st_nlink)
+        filename2 = os.path.join(self.basedir, "temp/temp1.gz")
+        self.assertEqual(file(filename2).read(), "This is the artifact")
+
+    def test_link_filename_to_filename_with_preexisting_file(self):
+        """
+        If the filename for the destination already exists, then we shouldn't
+        attempt to link the file.
+        """
+        transport = LocalTransport(self.archive)
+        fakefile = StringIO("This is the artifact")
+
+        transport.archive_file(fakefile, "/temp/temp.gz")
+        transport.link_filename_to_filename("/temp/temp.gz", "/temp/temp.gz")
+
+        filename = os.path.join(self.basedir, "temp/temp.gz")
+        # Test that the number of links to this file is 2
+        # (the original, and the newly created hardlink)
+        self.assertEqual(1, os.stat(filename).st_nlink)
+
 
 class SshTransportTest(TestCase):
 
@@ -87,16 +121,13 @@ class SshTransportTest(TestCase):
     def test_get_ssh_clients(self):
         """
         _get_ssh_clients should return an SSHClient and SFTPClient configured
-        to talk to the archive's credentials.
+        to talk to the archive"s credentials.
         """
-        with mock.patch.object(
-                self.archive.ssh_credentials, "get_pkey", return_value="KEY"):
+        with mock.patch.object(self.archive.ssh_credentials, "get_pkey", return_value="KEY"):  # noqa
             with mock.patch("archives.transports.SSHClient") as mock_client:
-                mock_client.return_value.get_transport.return_value = "MockTransport"
-                with mock.patch(
-                        "archives.transports.SFTPClient") as mock_sftp:
-                    with mock.patch(
-                            "archives.transports.WarningPolicy") as mock_hostpolicy:
+                mock_client.return_value.get_transport.return_value = "MockTransport"  # noqa
+                with mock.patch("archives.transports.SFTPClient") as mock_sftp:
+                    with mock.patch("archives.transports.WarningPolicy") as mock_hostpolicy:  # noqa
                         mock_hostpolicy.return_value = "MockWarningPolicy"
                         transport = SshTransport(self.archive)
                         transport._get_ssh_clients()
@@ -164,3 +195,25 @@ class SshTransportTest(TestCase):
             "cd `dirname /srv/builds/200101.01/artifact_filename`; "
             "sha256sum artifact_filename >> SHA256SUMS")
 
+    def test_link_filename_to_filename(self):
+        """
+        archive_file should ensure that there's a directory relative to the
+        base to hold the file, and then stream the file to the remote server.
+        """
+        mock_ssh = mock.Mock()
+        mock_stdout = mock.Mock()
+        mock_ssh.exec_command.return_value = None, mock_stdout, None
+        mock_sftp = mock.Mock()
+
+        transport = SshTransport(self.archive)
+        with mock.patch.object(
+                transport, "_get_ssh_clients",
+                return_value=(mock_ssh, mock_sftp)):
+            transport.start()
+            transport.link_filename_to_filename(
+                "/temp/temp.gz", "/temp2/temp.gz")
+        mock_ssh.exec_command.assert_has_calls(
+            [mock.call("mkdir -p `dirname /var/tmp/temp2/temp.gz`"),
+             mock.call('ln "/var/tmp/temp/temp.gz" "/var/tmp/temp2/temp.gz"')])
+
+        mock_ssh.close.assert_called_once()

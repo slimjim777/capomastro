@@ -4,7 +4,8 @@ from archives.models import Archive
 
 
 class ArchiveAdmin(admin.ModelAdmin):
-    list_display = ("name", "default", "host", "basedir", "policy", "transport")
+    list_display = (
+        "name", "default", "host", "basedir", "policy", "transport")
     list_filter = ("policy", "transport")
     list_display_links = ("name",)
     search_fields = ("name", "host")

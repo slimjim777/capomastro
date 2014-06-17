@@ -71,6 +71,12 @@ class Transport(object):
         """
         raise NotImplemented
 
+    def link_filename_to_filename(self, source, destination):
+        """
+        Link a filename to another filename in the transport's backend.
+        """
+        raise NotImplemented
+
 
 class LocalTransport(Transport):
     """
@@ -104,6 +110,31 @@ class LocalTransport(Transport):
         # TODO: raise exception if the command fails
         subprocess.Popen(command, shell=True).stdout.read()
 
+    def archive_url(self, url, destination_path, username, password):
+        """
+        Archives a single fileobj to the destination path.
+        """
+        logger.info("Attempting to archive %s to %s", url, destination_path)
+        request = urllib2.Request(url)
+        request.add_header(
+            "Authorization",
+            "Basic " + base64.b64encode(username + ":" + password))
+        f = urllib2.urlopen(request)
+        self.archive_file(f, destination_path)
+
+    def link_filename_to_filename(self, source, destination):
+        """
+        Hard link a file in the filesystem, only if the file doesn't already
+        exist.
+        """
+        source = self.get_relative_filename(source)
+        destination = self.get_relative_filename(destination)
+
+        if not os.path.exists(os.path.dirname(destination)):
+            os.makedirs(os.path.dirname(destination))
+        if not os.path.exists(destination):
+            os.link(source, destination)
+
 
 class SshTransport(Transport):
     """
@@ -118,7 +149,7 @@ class SshTransport(Transport):
         ssh_client.set_missing_host_key_policy(WarningPolicy())
         ssh_client.connect(
             self.archive.host,
-            username = self.archive.username,
+            username=self.archive.username,
             pkey=self.archive.ssh_credentials.get_pkey())
         sftp_client = SFTPClient.from_transport(
             ssh_client.get_transport())
@@ -151,6 +182,19 @@ class SshTransport(Transport):
         """
         destination =  self.get_relative_filename(filename)
         self._run_command("mkdir -p `dirname %s`" % destination)
+        # TODO: raise exception if the command fails
         logger.info(
             "SshTransport archiving artifact to %s", filename)
         self.sftp_client.stream_file_to_remote(fileobj, destination)
+
+    def link_filename_to_filename(self, source, destination):
+        """
+        Hard link a file in the filesystem.
+        """
+        source = self.get_relative_filename(source)
+        destination = self.get_relative_filename(destination)
+
+        # TODO: Use the return value from the call to work out if we were
+        # successful or not.
+        self._run_command("mkdir -p `dirname %s`" % destination)
+        self._run_command("ln \"%s\" \"%s\"" % (source, destination))

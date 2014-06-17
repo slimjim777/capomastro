@@ -92,19 +92,24 @@ class Archive(models.Model):
                     projectbuild_dependency=dependency))
         return items
 
-    def add_artifact(self, artifact, build, dependency=None, projectbuild_dependency=None):
+    def add_artifact(
+            self, artifact, build, dependency=None,
+            projectbuild_dependency=None):
         """
         Add an Artifact for this project.
         """
         policy = self.get_policy()
-        projectbuild = projectbuild_dependency and projectbuild_dependency.projectbuild
+        projectbuild = (
+            projectbuild_dependency and projectbuild_dependency.projectbuild)
+        archived_path = policy.get_path_for_artifact(
+            artifact, build=build, dependency=dependency,
+            projectbuild=projectbuild)
         return self.items.create(
             artifact=artifact,
             dependency=dependency,
             build=build,
             projectbuild_dependency=projectbuild_dependency,
-            archived_path=policy.get_path_for_artifact(
-                artifact, build=build, dependency=dependency, projectbuild=projectbuild))
+            archived_path=archived_path)
 
     def get_archived_artifacts_for_build(self, build):
         """
@@ -128,4 +133,4 @@ class ArchiveArtifact(models.Model):
         Dependency, blank=True, null=True)
 
     def __str__(self):
-        return "%s %s" % (self.artifact, self.archive)
+        return "%s %s" % (self.archived_path, self.archive)
