@@ -8,7 +8,8 @@ class DefaultPolicy(object):
     Base ArchivePolicy class. Calculates a basic path based on the basedir and
     filename.
     """
-    def get_path_for_artifact(self, artifact, build=None, dependency=None, projectbuild=None):
+    def get_path_for_artifact(
+            self, artifact, build=None, dependency=None, projectbuild=None):
         """
         Returns a filesystem path for an artifact.
         """
@@ -25,7 +26,8 @@ class CdimageArchivePolicy(DefaultPolicy):
     """
     Converts jenkins artifact urls to a cdimage-like structure.
     """
-    def get_path_for_artifact(self, artifact, build=None, dependency=None, projectbuild=None):
+    def get_path_for_artifact(
+            self, artifact, build=None, dependency=None, projectbuild=None):
         """
         Returns a cdimage-like relative path.
         """

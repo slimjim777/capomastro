@@ -2,7 +2,7 @@ import logging
 
 from django.utils import timezone
 
-from celery import shared_task
+from celery import shared_task, chain
 
 from archives.helpers import get_default_archive
 from archives.models import ArchiveArtifact, Archive
@@ -32,6 +32,28 @@ def archive_artifact_from_jenkins(archiveartifact_pk):
     item.save()
 
 
+@shared_task
+def link_artifact_in_archive(source_pk, destination_pk):
+    """
+    This task uses the underlying transport to link the source archiveartifact
+    to the destination archiveartifact without duplicating the file.
+    """
+    destination = ArchiveArtifact.objects.get(pk=destination_pk)
+    source = ArchiveArtifact.objects.get(pk=source_pk)
+    logging.info("Archiving %s in archive %s", destination, source.archive)
+
+    transport = source.archive.get_transport()
+    transport.start()
+    logging.info("  %s -> %s", source.archived_path, destination.archived_path)
+
+    transport.link_filename_to_filename(
+        source.archived_path, destination.archived_path)
+    transport.end()
+    destination.archived_at = timezone.now()
+    logging.info("  archived at %s", destination.archived_at)
+    destination.save()
+
+
 # TODO Workout some sort of decorator so these functions don't have to return
 # build_pk in the chain
 @shared_task
@@ -45,10 +67,13 @@ def process_build_artifacts(build_pk):
         "Processing build artifacts from build %s %d", build, build.number)
     archive = get_default_archive()
     if archive:
-       items = archive.add_build(build)
-       logging.info("Archiving %s", items)
-       for item in items:
-           archive_artifact_from_jenkins.delay(item.pk)
+        items = archive.add_build(build)
+        logging.info("Archiving %s", items)
+        first, rest = items[0], items[1:]
+        chain(
+            archive_artifact_from_jenkins.si(first.pk),
+            *[link_artifact_in_archive.si(first.pk, item.pk) for item in
+              rest]).apply_async()
     else:
         logging.info("No default archiver - build not automatically archived.")
     return build_pk

@@ -11,9 +11,10 @@ from django.test.utils import override_settings
 import mock
 
 from archives.tasks import (
-    archive_artifact_from_jenkins, process_build_artifacts, generate_checksums)
+    archive_artifact_from_jenkins, process_build_artifacts,
+    link_artifact_in_archive, generate_checksums)
 from archives.models import Archive, ArchiveArtifact
-from archives.transports import Transport
+from archives.transports import Transport, LocalTransport
 from jenkins.tests.factories import ArtifactFactory, BuildFactory
 from projects.helpers import build_project
 from projects.tasks import process_build_dependencies
@@ -45,13 +46,16 @@ class LoggingTransport(Transport):
             "Checksums generated for %s" % archived_artifact)
 
 
-class TransferFileToArchiveTaskTest(TestCase):
+class LocalArchiveTestBase(TestCase):
 
     def setUp(self):
         self.basedir = tempfile.mkdtemp()
 
     def tearDown(self):
         shutil.rmtree(self.basedir)
+
+
+class TransferFileToArchiveTaskTest(LocalArchiveTestBase):
 
     def test_archive_artifact_from_jenkins(self):
         """
@@ -181,21 +185,21 @@ class ProcessBuildArtifactsTaskTest(TestCase):
 
         build = BuildFactory.create(
             job=dependency.job, build_id=projectbuild.build_key)
-
         ArtifactFactory.create(
             build=build, filename="testing/testing.txt")
-        archive = ArchiveFactory.create(
-            transport="local", basedir=self.basedir, default=True)
-
         # We need to ensure that the artifacts are all connected up.
         process_build_dependencies(build.pk)
 
+        archive = ArchiveFactory.create(
+            transport="local", basedir=self.basedir, default=True,
+            policy="cdimage")
         with mock.patch("archives.transports.urllib2") as urllib2_mock:
             urllib2_mock.urlopen.side_effect = lambda x: StringIO(
                 u"Artifact from Jenkins")
             process_build_artifacts(build.pk)
 
         [item1, item2] = list(archive.get_archived_artifacts_for_build(build))
+
         filename = os.path.join(self.basedir, item1.archived_path)
         self.assertEqual(file(filename).read(), "Artifact from Jenkins")
 
@@ -239,3 +243,34 @@ class ProcessBuildArtifactsTaskTest(TestCase):
         self.assertEqual(
             [],
             list(archive.get_archived_artifacts_for_build(build)))
+
+
+class LinkArtifactInArchiveTaskTest(LocalArchiveTestBase):
+
+    def test_link_artifact_in_archive(self):
+        """
+        The link_artifact_in_archive task should use the transport to link the
+        specified artifacts.
+        """
+        project = ProjectFactory.create()
+        dependency = DependencyFactory.create()
+        ProjectDependency.objects.create(
+            project=project, dependency=dependency)
+        build = BuildFactory.create(job=dependency.job)
+        artifact = ArtifactFactory.create(
+            build=build, filename="testing/testing.txt")
+
+        # We need to ensure that the artifacts are all connected up.
+        process_build_dependencies(build.pk)
+
+        archive = ArchiveFactory.create(
+            transport="local", basedir=self.basedir, default=True)
+        [item1, item2] = archive.add_build(artifact.build)
+
+        transport = mock.Mock(spec=LocalTransport)
+        with mock.patch.object(
+                Archive, "get_transport", return_value=transport):
+            link_artifact_in_archive(item1.pk, item2.pk)
+
+        transport.link_filename_to_filename.assert_called_once_with(
+            item1.archived_path, item2.archived_path)

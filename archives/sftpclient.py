@@ -25,5 +25,3 @@ class SFTPClient(BaseSFTPClient):
         if s.st_size != size:
             raise IOError("size mismatch in put! %d != %d" % (s.st_size, size))
         return s
-
-
