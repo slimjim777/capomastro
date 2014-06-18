@@ -16,6 +16,8 @@ class Transport(object):
     Responsible for reading the artifacts from
     jenkins and writing them to the target archive.
     """
+    checksum_filename = "SHA256SUMS"
+
     def __init__(self, archive):
         self.archive = archive
 
@@ -39,11 +41,10 @@ class Transport(object):
         """
         Generates checksum files for the specified artifact on the archive.
         """
-        checksum_filename = "SHA256SUMS"
         self._run_command("cd `dirname %s`; sha256sum %s >> %s" % (
             archived_artifact.archived_path,
             archived_artifact.artifact.filename,
-            checksum_filename))
+            self.checksum_filename))
 
     def get_relative_filename(self, filename):
         """
@@ -153,4 +154,3 @@ class SshTransport(Transport):
         logger.info(
             "SshTransport archiving artifact to %s", filename)
         self.sftp_client.stream_file_to_remote(fileobj, destination)
-
