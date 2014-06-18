@@ -116,6 +116,6 @@ try:
 except ImportError, e:
     pass
 
-from archives.tasks import process_build_artifacts
+from archives.tasks import process_build_artifacts, generate_checksums
 from projects.tasks import process_build_dependencies
-POST_BUILD_TASKS=[process_build_dependencies, process_build_artifacts]
+POST_BUILD_TASKS=[process_build_dependencies, process_build_artifacts, generate_checksums]
