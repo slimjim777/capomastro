@@ -241,7 +241,6 @@ class ProcessBuildArtifactsTaskTest(TestCase):
             mock.call.info(
                 "No default archiver - build not automatically archived.")
         ])
-
         self.assertEqual(
             [],
             list(archive.get_archived_artifacts_for_build(build)))

@@ -1,4 +1,5 @@
 import logging
+import urlparse
 
 from django.db import models
 from django.utils.encoding import python_2_unicode_compatible
@@ -29,6 +30,7 @@ class Archive(models.Model):
     transport = models.CharField(
         max_length=64, choices=[(p, p) for p in TRANSPORTS.keys()])
     default = models.BooleanField(default=False)
+    base_url = models.CharField(max_length=200, blank=True, default="")
 
     def __str__(self):
         return self.name
@@ -133,5 +135,16 @@ class ArchiveArtifact(models.Model):
     dependency = models.ForeignKey(
         Dependency, blank=True, null=True)
 
+    class Meta:
+        ordering = ["archived_path"]
+
     def __str__(self):
         return "%s %s" % (self.archived_path, self.archive)
+
+    def get_url(self):
+        """
+        Return a combination of the base_url and archived_path for a given
+        artifact combination.
+        """
+        return urlparse.urljoin(
+            self.archive.base_url, self.archived_path.lstrip("/"))

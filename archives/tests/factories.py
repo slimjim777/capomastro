@@ -17,6 +17,7 @@ class ArchiveFactory(factory.DjangoModelFactory):
     username = "testing"
     ssh_credentials = factory.SubFactory(SshKeyPairFactory)
     transport = "ssh"
+    base_url = "http://example.com/projects/"
 
 
 class ArchiveArtifactFactory(factory.DjangoModelFactory):
