@@ -5,9 +5,8 @@ from django.utils import timezone
 from celery import shared_task, chain
 
 from archives.helpers import get_default_archive
-from archives.models import ArchiveArtifact, Archive
+from archives.models import ArchiveArtifact
 from jenkins.models import Build
-from projects.models import ProjectBuild
 
 
 @shared_task
@@ -23,13 +22,14 @@ def archive_artifact_from_jenkins(archiveartifact_pk):
     server = artifact.build.job.server
     transport.start()
     logging.info("  %s -> %s", artifact.url, item.archived_path)
-    transport.archive_url(
+    size = transport.archive_url(
         item.artifact.url, item.archived_path,
         username=server.username, password=server.password)
     transport.end()
     item.archived_at = timezone.now()
-    logging.info("  archived at %s", item.archived_at)
+    item.archived_size = size
     item.save()
+    logging.info("  archived at %s", item.archived_at)
 
 
 @shared_task
@@ -50,6 +50,8 @@ def link_artifact_in_archive(source_pk, destination_pk):
         source.archived_path, destination.archived_path)
     transport.end()
     destination.archived_at = timezone.now()
+    destination.archived_size = source.archived_size
+    destination.save()
     logging.info("  archived at %s", destination.archived_at)
     destination.save()
 
@@ -95,4 +97,3 @@ def generate_checksums(build_pk):
             logging.info("Generating checksums for %s" % artifact)
             transport.generate_checksums(artifact)
     transport.end()
-

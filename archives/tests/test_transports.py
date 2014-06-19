@@ -10,14 +10,13 @@ import mock
 
 from archives.models import ArchiveArtifact
 from archives.transports import LocalTransport, SshTransport
-from .factories import ArchiveFactory
-from projects.tests.factories import (
-    ProjectFactory, DependencyFactory, ProjectBuildFactory)
+from jenkins.models import Artifact
+from jenkins.tests.factories import ArtifactFactory, BuildFactory
 from projects.helpers import build_project
 from projects.models import ProjectDependency, ProjectBuildDependency
 from projects.tasks import process_build_dependencies
-from jenkins.models import Artifact
-from jenkins.tests.factories import ArtifactFactory, BuildFactory
+from projects.tests.factories import ProjectFactory, DependencyFactory
+from .factories import ArchiveFactory
 
 
 class LocalTransportTest(TestCase):
@@ -38,7 +37,9 @@ class LocalTransportTest(TestCase):
         transport = LocalTransport(self.archive)
         fakefile = StringIO(u"This is the artifact")
 
-        transport.archive_file(fakefile, "/temp/temp.gz")
+        size = transport.archive_file(fakefile, "/temp/temp.gz")
+
+        self.assertEqual(20, size)
         filename = os.path.join(self.basedir, "temp/temp.gz")
         self.assertEqual(file(filename).read(), "This is the artifact")
 
@@ -172,7 +173,7 @@ class SshTransportTest(TestCase):
         # a project with a build and an archived artifact
         project = ProjectFactory.create()
         dependency = DependencyFactory.create()
-        projectdependency = ProjectDependency.objects.create(
+        ProjectDependency.objects.create(
             project=project, dependency=dependency)
         projectbuild = build_project(project, queue_build=False)
         build = BuildFactory.create(
