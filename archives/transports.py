@@ -63,7 +63,7 @@ class Transport(object):
             "Authorization",
             "Basic " + base64.b64encode(username + ":" + password))
         f = urllib2.urlopen(request)
-        self.archive_file(f, destination_path)
+        return self.archive_file(f, destination_path)
 
     def _run_command(self, command):
         """
@@ -94,14 +94,23 @@ class LocalTransport(Transport):
         """
         Archives a single artifact from the fileobj to the
         destination path.
+
+        Returns the number of bytes archived.
         """
         filename = self.get_relative_filename(filename)
         if not os.path.exists(os.path.dirname(filename)):
             os.makedirs(os.path.dirname(filename))
         logger.info(
             "LocalTransport archiving artifact to %s", filename)
-        open(filename, "w").write(fileobj.read())
-        return filename
+
+        # We use the low-level stuff here because Python2 returns None from
+        # fileobj.write()
+        try:
+            fd = os.open(filename, os.O_RDWR | os.O_CREAT)
+            size = os.write(fd, fileobj.read())
+        finally:
+            os.close(fd)
+        return size
 
     def _run_command(self, command):
         """
@@ -120,7 +129,7 @@ class LocalTransport(Transport):
             "Authorization",
             "Basic " + base64.b64encode(username + ":" + password))
         f = urllib2.urlopen(request)
-        self.archive_file(f, destination_path)
+        return self.archive_file(f, destination_path)
 
     def link_filename_to_filename(self, source, destination):
         """
@@ -180,12 +189,12 @@ class SshTransport(Transport):
         Uploads the artifact_url to the destination on
         the remote server, underneath the target's basedir.
         """
-        destination =  self.get_relative_filename(filename)
+        destination = self.get_relative_filename(filename)
         self._run_command("mkdir -p `dirname %s`" % destination)
         # TODO: raise exception if the command fails
         logger.info(
             "SshTransport archiving artifact to %s", filename)
-        self.sftp_client.stream_file_to_remote(fileobj, destination)
+        return self.sftp_client.stream_file_to_remote(fileobj, destination)
 
     def link_filename_to_filename(self, source, destination):
         """

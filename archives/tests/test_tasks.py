@@ -40,6 +40,7 @@ class LoggingTransport(Transport):
 
     def archive_url(self, url, path, username, password):
         self.log.append("%s -> %s %s:%s" % (url, path, username, password))
+        return 0
 
     def generate_checksums(self, archived_artifact):
         self.log.append(
@@ -55,7 +56,7 @@ class LocalArchiveTestBase(TestCase):
         shutil.rmtree(self.basedir)
 
 
-class TransferFileToArchiveTaskTest(LocalArchiveTestBase):
+class ArchiveArtifactFromJenkinsTaskTest(LocalArchiveTestBase):
 
     def test_archive_artifact_from_jenkins(self):
         """
@@ -81,6 +82,7 @@ class TransferFileToArchiveTaskTest(LocalArchiveTestBase):
 
         filename = os.path.join(self.basedir, item.archived_path)
         self.assertEqual(file(filename).read(), "Artifact from Jenkins")
+        self.assertEqual(21, item.archived_size)
 
     def test_archive_artifact_from_jenkins_transport_lifecycle(self):
         """
@@ -134,7 +136,7 @@ class GenerateChecksumsTaskTest(TestCase):
         """
         project = ProjectFactory.create()
         dependency = DependencyFactory.create()
-        projectdependency = ProjectDependency.objects.create(
+        ProjectDependency.objects.create(
             project=project, dependency=dependency)
         projectbuild = build_project(project, queue_build=False)
         build = BuildFactory.create(
@@ -266,6 +268,8 @@ class LinkArtifactInArchiveTaskTest(LocalArchiveTestBase):
         archive = ArchiveFactory.create(
             transport="local", basedir=self.basedir, default=True)
         [item1, item2] = archive.add_build(artifact.build)
+        item1.archived_size = 1000
+        item1.save()
 
         transport = mock.Mock(spec=LocalTransport)
         with mock.patch.object(
@@ -274,3 +278,5 @@ class LinkArtifactInArchiveTaskTest(LocalArchiveTestBase):
 
         transport.link_filename_to_filename.assert_called_once_with(
             item1.archived_path, item2.archived_path)
+        item2 = ArchiveArtifact.objects.get(pk=item2.pk)
+        self.assertEqual(1000, item2.archived_size)

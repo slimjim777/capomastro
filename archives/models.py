@@ -125,6 +125,7 @@ class ArchiveArtifact(models.Model):
     artifact = models.ForeignKey(Artifact)
     archived_at = models.DateTimeField(blank=True, null=True)
     archived_path = models.CharField(max_length=255, blank=True, null=True)
+    archived_size = models.IntegerField(default=0)
 
     build = models.ForeignKey(Build, blank=True, null=True)
     projectbuild_dependency = models.ForeignKey(
