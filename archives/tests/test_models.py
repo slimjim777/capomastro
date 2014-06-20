@@ -83,6 +83,36 @@ class ArchiveTest(TestCase):
             policy_path,
             archive.items.first().archived_path)
 
+    def test_artifact_get_url(self):
+        """
+        ArchiveArtifact.get_url should return a valid URL for an artifact within
+        the archive.
+        """
+        project, dependency = self.create_dependencies()
+        ProjectDependency.objects.create(
+            project=project, dependency=dependency)
+
+        projectbuild = build_project(project, queue_build=False)
+
+        build = BuildFactory.create(
+            job=dependency.job, build_id=projectbuild.build_key)
+
+        artifact = ArtifactFactory.create(build=build, filename="file1.gz")
+        archive = ArchiveFactory.create(policy="cdimage")
+
+        update_projectbuilds(build)
+        create_projectbuilds_for_autotracking(build)
+        archive.add_build(build)
+
+        [item1, item2] = list(archive.get_archived_artifacts_for_build(build))
+
+        self.assertEqual(
+            "http://example.com/projects/%s" % item1.archived_path,
+            item1.get_url())
+        self.assertEqual(
+            "http://example.com/projects/%s" % item2.archived_path,
+            item2.get_url())
+
     def test_get_archived_artifacts_for_build(self):
         """
         We can fetch the artifacts that get added from a build.
@@ -238,8 +268,8 @@ class ArchiveTest(TestCase):
         update_projectbuilds(build2)
         create_projectbuilds_for_autotracking(build2)
         archive.add_build(build2)
-
         self.assertEqual(5, archive.items.count())
+
         artifacts = ArchiveArtifact.objects.all().order_by("archived_path")
         policy = CdimageArchivePolicy()
         self.assertEqual(

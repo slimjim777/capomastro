@@ -8,12 +8,15 @@ from jenkins.models import Job
 from jenkins.tasks import delete_job_from_jenkins
 from jenkins.tests.factories import (
     BuildFactory, JobFactory, JobTypeFactory, JenkinsServerFactory,
-    job_with_parameters)
+    job_with_parameters, ArtifactFactory)
 from projects.models import (
     ProjectDependency, Project, Dependency, ProjectBuildDependency)
 from projects.helpers import build_project
+from projects.tasks import process_build_dependencies
+
 from .factories import (
     ProjectFactory, DependencyFactory, ProjectBuildFactory)
+from archives.tests.factories import ArchiveFactory
 
 
 # TODO Introduce subclass of WebTest that allows easy assertions that a page
@@ -187,7 +190,7 @@ class ProjectBuildDetailTest(WebTest):
 
         projectbuild = build_project(self.project, queue_build=False)
         BuildFactory.create(
-            job=dependency.job, build_id=projectbuild.build_id)
+            job=dependency.job, build_id=projectbuild.build_key)
 
         url = reverse(
             "project_projectbuild_detail",
@@ -201,6 +204,35 @@ class ProjectBuildDetailTest(WebTest):
         self.assertEqual(projectbuild, response.context["projectbuild"])
         self.assertEqual(
             list(dependencies), list(response.context["dependencies"]))
+        self.assertTrue(
+            "archived_items" not in response.context,
+            "Project Build has archive items.")
+
+    def test_project_build_detail_view_with_archived_artifacts(self):
+        """
+        If we have archived artifacts for this build, we should provide the list
+        of archived items in the response context.
+        """
+        dependency = DependencyFactory.create()
+        ProjectDependency.objects.create(
+            project=self.project, dependency=dependency)
+
+        projectbuild = build_project(self.project, queue_build=False)
+        build = BuildFactory.create(
+            job=dependency.job, build_id=projectbuild.build_key)
+        artifact = ArtifactFactory.create(build=build, filename="file1.gz")
+
+        process_build_dependencies(build.pk)
+        archive = ArchiveFactory.create(policy="cdimage", default=True)
+        items = [x for x in archive.add_build(build) if x.projectbuild_dependency]
+
+        url = reverse(
+            "project_projectbuild_detail",
+            kwargs={"project_pk": self.project.pk,
+                    "build_pk": projectbuild.pk})
+        response = self.app.get(url, user="testing")
+
+        self.assertEqual(items, list(response.context["archived_items"]))
 
 
 class DependencyListTest(WebTest):

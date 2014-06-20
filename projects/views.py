@@ -18,6 +18,7 @@ from projects.forms import (
     ProjectForm, DependencyCreateForm, ProjectBuildForm)
 from projects.helpers import build_project, build_dependency
 from projects.utils import get_build_table_for_project
+from archives.helpers import get_default_archive
 
 
 class ProjectCreateView(
@@ -141,6 +142,11 @@ class ProjectBuildDetailView(LoginRequiredMixin, DetailView):
         context["projectbuild"] = self._get_build_from_url()
         context["dependencies"] = self._get_build_dependencies(
             context["projectbuild"])
+
+        archive = get_default_archive()
+        if archive:
+            context["archived_items"] = archive.items.filter(
+                projectbuild_dependency__projectbuild=context["projectbuild"])
         return context
 
 
