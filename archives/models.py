@@ -64,7 +64,8 @@ class Archive(models.Model):
             items = self.add_dependency_build(build)
         else:
             items = self.add_dependency_build(build)
-            items.extend(self.add_projectbuild_build(build))
+            for artifact, files in self.add_projectbuild(build).items():
+                items.setdefault(artifact, []).extend(files)
         return items
 
     def add_dependency_build(self, build):
@@ -72,24 +73,24 @@ class Archive(models.Model):
         This adds dependency-only builds to the archive.
         """
         logging.info("    processing dependency builds")
-        items = []
+        items = {}
         for artifact in build.artifact_set.all():
             logging.info("Adding artifact %s", artifact)
             for dependency in build.job.dependency_set.all():
-                items.append(self.add_artifact(
+                items.setdefault(artifact, []).append(self.add_artifact(
                     artifact, build, dependency=dependency))
         return items
 
-    def add_projectbuild_build(self, build):
+    def add_projectbuild(self, build):
         """
         This adds projectbuild builds to the archive.
         """
         logging.info("    processing projectbuilds")
-        items = []
+        items = {}
         for artifact in build.artifact_set.all():
             for dependency in build.projectbuild_dependencies.all():
                 logging.info("Adding artifact %s", artifact)
-                items.append(self.add_artifact(
+                items.setdefault(artifact, []).append(self.add_artifact(
                     artifact, build, dependency=dependency.dependency,
                     projectbuild_dependency=dependency))
         return items

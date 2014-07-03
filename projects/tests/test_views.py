@@ -224,7 +224,7 @@ class ProjectBuildDetailTest(WebTest):
 
         process_build_dependencies(build.pk)
         archive = ArchiveFactory.create(policy="cdimage", default=True)
-        items = [x for x in archive.add_build(build) if x.projectbuild_dependency]
+        items = [x for x in archive.add_build(build)[artifact] if x.projectbuild_dependency]
 
         url = reverse(
             "project_projectbuild_detail",

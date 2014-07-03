@@ -71,12 +71,12 @@ class ArchiveArtifactFromJenkinsTaskTest(LocalArchiveTestBase):
         artifact = ArtifactFactory.create(
             build=build, filename="testing/testing.txt")
 
-        [item] = archive.add_build(artifact.build)
+        items = archive.add_build(artifact.build)
 
         fakefile = StringIO(u"Artifact from Jenkins")
         with mock.patch("archives.transports.urllib2") as urllib2_mock:
             urllib2_mock.urlopen.return_value = fakefile
-            archive_artifact_from_jenkins(item.pk)
+            archive_artifact_from_jenkins(items[artifact][0].pk)
 
         [item] = list(archive.get_archived_artifacts_for_build(build))
 
@@ -245,6 +245,49 @@ class ProcessBuildArtifactsTaskTest(TestCase):
             [],
             list(archive.get_archived_artifacts_for_build(build)))
 
+    @override_settings(CELERY_ALWAYS_EAGER=True)
+    def test_process_build_artifacts_with_multiple_artifacts(self):
+        """
+        All the artifacts should be individually linked.
+        """
+        project = ProjectFactory.create()
+        dependency = DependencyFactory.create()
+        ProjectDependency.objects.create(
+            project=project, dependency=dependency)
+
+        projectbuild = build_project(project, queue_build=False)
+
+        build = BuildFactory.create(
+            job=dependency.job, build_id=projectbuild.build_key)
+        artifact1 = ArtifactFactory.create(
+            build=build, filename="testing/testing1.txt")
+        artifact2 = ArtifactFactory.create(
+            build=build, filename="testing/testing2.txt")
+        # We need to ensure that the artifacts are all connected up.
+        process_build_dependencies(build.pk)
+
+        archive = ArchiveFactory.create(
+            transport="local", basedir=self.basedir, default=True,
+            policy="cdimage")
+
+        with mock.patch("archives.transports.urllib2") as urllib2_mock:
+            urllib2_mock.urlopen.side_effect = lambda x: StringIO(
+                u"Artifact %s")
+            with mock.patch(
+                "archives.tasks.archive_artifact_from_jenkins") as archive_task:
+                with mock.patch(
+                    "archives.tasks.link_artifact_in_archive") as link_task:
+                    process_build_artifacts(build.pk)
+
+        [item1, item2, item3, item4] = list(
+            archive.get_archived_artifacts_for_build(build).order_by("artifact"))
+
+        self.assertEqual(
+            [mock.call(item2.pk), mock.call(item4.pk)],
+            archive_task.si.call_args_list)
+        self.assertEqual(
+            [mock.call(item2.pk, item1.pk), mock.call(item4.pk, item3.pk)],
+            link_task.si.call_args_list)
 
 class LinkArtifactInArchiveTaskTest(LocalArchiveTestBase):
 
@@ -266,7 +309,7 @@ class LinkArtifactInArchiveTaskTest(LocalArchiveTestBase):
 
         archive = ArchiveFactory.create(
             transport="local", basedir=self.basedir, default=True)
-        [item1, item2] = archive.add_build(artifact.build)
+        [item1, item2] = archive.add_build(artifact.build)[artifact]
         item1.archived_size = 1000
         item1.save()
 

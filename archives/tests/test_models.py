@@ -65,8 +65,8 @@ class ArchiveTest(TestCase):
 
     def test_add_build_from_dependency(self):
         """
-        We can add builds to the the archive, and they'll get added
-        appropriately.
+        Adding a dependency build (i.e. not a ProjectBuild) should result in a
+        single item in the archive.
         """
         project, dependency = self.create_dependencies()
 
@@ -74,8 +74,9 @@ class ArchiveTest(TestCase):
         artifact = ArtifactFactory.create(build=build, filename="testing.gz")
         archive = ArchiveFactory.create()
 
-        archive.add_build(build)
+        items = archive.add_build(build)
         self.assertEqual(1, archive.items.count())
+        self.assertEqual([artifact], [x.artifact for x in items[artifact]])
 
         policy_path = archive.get_policy().get_path_for_artifact(
             artifact, build=build, dependency=dependency)
@@ -150,30 +151,28 @@ class ArchiveTest(TestCase):
         """
         project, dependency1, dependency2 = self.create_dependencies(2)
 
-        project = ProjectFactory.create()
-        dependency1 = DependencyFactory.create()
-        ProjectDependency.objects.create(
-            project=project, dependency=dependency1)
-        dependency2 = DependencyFactory.create()
         ProjectDependency.objects.create(
             project=project, dependency=dependency2)
-
         projectbuild = build_project(project, queue_build=False)
+
+        archive = ArchiveFactory.create(policy="cdimage")
 
         build1 = BuildFactory.create(
             job=dependency1.job, build_id=projectbuild.build_key)
-        build2 = BuildFactory.create(
-            job=dependency2.job, build_id=projectbuild.build_key)
-
-        ArtifactFactory.create(build=build1, filename="artifact1.gz")
-        ArtifactFactory.create(build=build2, filename="artifact2.gz")
-
-        archive = ArchiveFactory.create()
+        artifact1 = ArtifactFactory.create(
+            build=build1, filename="artifact1.gz")
 
         update_projectbuilds(build1)
+        build1_items = archive.add_build(build1)
+        self.assertEqual(2, len(build1_items[artifact1]))
+
+        build2 = BuildFactory.create(
+            job=dependency2.job, build_id=projectbuild.build_key)
+        artifact2 = ArtifactFactory.create(build=build2, filename="artifact2.gz")
+
         update_projectbuilds(build2)
-        archive.add_build(build1)
-        archive.add_build(build2)
+        build2_items = archive.add_build(build2)
+        self.assertEqual(2, len(build2_items[artifact2]))
 
         self.assertEqual(4, archive.items.count())
 
