@@ -8,8 +8,6 @@ from paramiko import SSHClient, WarningPolicy
 
 from archives.sftpclient import SFTPClient
 
-logger = logging.getLogger(__name__)
-
 
 class Transport(object):
     """
@@ -41,8 +39,8 @@ class Transport(object):
         """
         Generates checksum files for the specified artifact on the archive.
         """
-        self._run_command("cd `dirname %s`; sha256sum %s >> %s" % (
-            archived_artifact.archived_path,
+        self._run_command("cd `dirname %s` && sha256sum %s >> %s" % (
+            self.get_relative_filename(archived_artifact.archived_path),
             archived_artifact.artifact.filename,
             self.checksum_filename))
 
@@ -57,7 +55,7 @@ class Transport(object):
         """
         Archives a single fileobj to the destination path.
         """
-        logger.info("Attempting to archive %s to %s", url, destination_path)
+        logging.info("Attempting to archive %s to %s", url, destination_path)
         request = urllib2.Request(url)
         request.add_header(
             "Authorization",
@@ -100,7 +98,7 @@ class LocalTransport(Transport):
         filename = self.get_relative_filename(filename)
         if not os.path.exists(os.path.dirname(filename)):
             os.makedirs(os.path.dirname(filename))
-        logger.info(
+        logging.info(
             "LocalTransport archiving artifact to %s", filename)
 
         # We use the low-level stuff here because Python2 returns None from
@@ -117,13 +115,14 @@ class LocalTransport(Transport):
         Runs a command in a local shell.
         """
         # TODO: raise exception if the command fails
-        subprocess.Popen(command, shell=True).stdout.read()
+        logging.debug("Executing %s" % command)
+        subprocess.Popen(command, stdout=subprocess.PIPE, shell=True).stdout.read()
 
     def archive_url(self, url, destination_path, username, password):
         """
         Archives a single fileobj to the destination path.
         """
-        logger.info("Attempting to archive %s to %s", url, destination_path)
+        logging.info("Attempting to archive %s to %s", url, destination_path)
         request = urllib2.Request(url)
         request.add_header(
             "Authorization",
@@ -192,7 +191,7 @@ class SshTransport(Transport):
         destination = self.get_relative_filename(filename)
         self._run_command("mkdir -p `dirname %s`" % destination)
         # TODO: raise exception if the command fails
-        logger.info(
+        logging.info(
             "SshTransport archiving artifact to %s", filename)
         return self.sftp_client.stream_file_to_remote(fileobj, destination)
 

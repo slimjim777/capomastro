@@ -193,8 +193,8 @@ class SshTransportTest(TestCase):
             transport.generate_checksums(archived_artifact)
 
         mock_run.assert_called_once_with(
-            "cd `dirname /srv/builds/200101.01/artifact_filename`; "
-            "sha256sum artifact_filename >> SHA256SUMS")
+            "cd `dirname /var/tmp/srv/builds/200101.01/artifact_filename` "
+            "&& sha256sum artifact_filename >> SHA256SUMS")
 
     def test_link_filename_to_filename(self):
         """

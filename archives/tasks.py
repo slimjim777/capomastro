@@ -76,7 +76,7 @@ def process_build_artifacts(build_pk):
             chain(
                 archive_artifact_from_jenkins.si(first.pk),
                 *[link_artifact_in_archive.si(first.pk, item.pk) for item in
-                  rest]).apply_async()
+                  rest]).apply()
     else:
         logging.info("No default archiver - build not automatically archived.")
     return build_pk
