@@ -1,3 +1,5 @@
+from django.contrib.auth.models import User
+
 from celery.utils.log import get_task_logger
 from celery import shared_task
 
@@ -8,7 +10,7 @@ logger = get_task_logger(__name__)
 
 
 @shared_task
-def build_job(job_pk, build_id=None, params=None):
+def build_job(job_pk, build_id=None, params=None, user=None):
     """
     Request building Job.
     """
@@ -20,6 +22,8 @@ def build_job(job_pk, build_id=None, params=None):
         params = {}
     if build_id is not None:
         params["BUILD_ID"] = build_id
+    if user is not None:
+        params["REQUESTOR"] = user
     client.build_job(job.name, params=params)
 
 
@@ -37,6 +41,19 @@ def push_job_to_jenkins(job_pk):
         job.update_config(xml)
     else:
         client.create_job(job.name, xml)
+
+def extract_requestor_from_params(params):
+    """
+    Return the requesting user or None if we couldn't find a REQUESTOR in the
+    build parameters.
+    """
+    for param in params:
+        if param["name"] == "REQUESTOR":
+            try:
+                return User.objects.get(username=param["value"])
+            except User.DoesNotExist:
+                logger.info("Unknown REQUESTOR %s", param["value"])
+                return
 
 
 @shared_task
@@ -64,6 +81,8 @@ def import_build_for_job(build_pk):
         "console_log": build_result.get_console(),
         "parameters": build_result.get_actions()["parameters"],
     }
+    requestor = extract_requestor_from_params(build_details["parameters"])
+    build_details["requested_by"] = requestor
     logger.info("Processing build details for %s #%d" % (
         build.job, build.number))
     Build.objects.filter(

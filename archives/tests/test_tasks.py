@@ -283,10 +283,10 @@ class ProcessBuildArtifactsTaskTest(TestCase):
             archive.get_archived_artifacts_for_build(build).order_by("artifact"))
 
         self.assertEqual(
-            [mock.call(item2.pk), mock.call(item4.pk)],
+            [mock.call(item4.pk), mock.call(item2.pk)],
             archive_task.si.call_args_list)
         self.assertEqual(
-            [mock.call(item2.pk, item1.pk), mock.call(item4.pk, item3.pk)],
+            [mock.call(item4.pk, item3.pk), mock.call(item2.pk, item1.pk)],
             link_task.si.call_args_list)
 
 class LinkArtifactInArchiveTaskTest(LocalArchiveTestBase):

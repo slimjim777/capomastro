@@ -1,5 +1,6 @@
 from django.test import TestCase
 from django.test.utils import override_settings
+from django.contrib.auth.models import User
 
 import mock
 import jenkinsapi
@@ -7,7 +8,7 @@ import jenkinsapi
 from jenkins.models import Build
 from jenkins.tasks import (
     build_job, push_job_to_jenkins, import_build_for_job,
-    delete_job_from_jenkins)
+    delete_job_from_jenkins, extract_requestor_from_params)
 from .factories import (
     JobFactory, JenkinsServerFactory, JobTypeFactory, BuildFactory)
 
@@ -84,8 +85,54 @@ class BuildJobTaskTest(TestCase):
         mock_jenkins.return_value.build_job.assert_called_with(
             job.name, params={"MYTEST": "500", "BUILD_ID": "20140312.1"})
 
+    @override_settings(CELERY_ALWAYS_EAGER=True)
+    def test_build_job_with_params_and_user(self):
+        """
+        If we provide a user, we should get a REQUESTOR parameter.
+        """
+        job = JobFactory.create(server=self.server)
+
+        with mock.patch(
+                "jenkins.models.Jenkins",
+                spec=jenkinsapi.jenkins.Jenkins) as mock_jenkins:
+            build_job(job.pk, "20140312.1", params={"MYTEST": "500"},
+                user="testing")
+
+        mock_jenkins.assert_called_with(
+            self.server.url, username=u"root", password=u"testing")
+        mock_jenkins.return_value.build_job.assert_called_with(
+            job.name, params={
+              "MYTEST": "500", "BUILD_ID": "20140312.1",
+              "REQUESTOR": "testing"})
+
 
 class ImportBuildTaskTest(TestCase):
+
+    def test_extract_requestor_from_params(self):
+        """
+        extract_requestor_from_params should return the User that requested the
+        build by looking up the REQUESTOR parameter.
+        """
+        user = User.objects.create_user("testing")
+        parameters = [{"name": "BUILD_ID", "value": ""},
+                      {"name": "REQUESTOR", "value": "testing"}]
+
+        self.assertEqual(user, extract_requestor_from_params(parameters))
+
+    def test_extract_requestor_from_params_with_unknown_user(self):
+        """
+        extract_requestor_from_params should return the User that requested the
+        build by looking up the REQUESTOR parameter.
+        """
+        user = User.objects.create_user("testing")
+        parameters = [{"name": "BUILD_ID", "value": ""},
+                      {"name": "REQUESTOR", "value": "unknown"}]
+
+        with mock.patch("jenkins.tasks.logger") as mock_logger:
+                user = extract_requestor_from_params(parameters)
+
+        self.assertIsNone(user)
+        mock_logger.info.assert_called_once_With("Unknown REQUESTOR unknown")
 
     @override_settings(
         CELERY_ALWAYS_EAGER=True, NOTIFICATION_HOST="http://example.com")
@@ -94,6 +141,7 @@ class ImportBuildTaskTest(TestCase):
         Import build for job should update the build with the details fetched
         from the Jenkins server, including fetching the artifact details.
         """
+        user = User.objects.create_user("testing")
         job = JobFactory.create()
         build = BuildFactory.create(job=job, number=5)
 
@@ -106,7 +154,8 @@ class ImportBuildTaskTest(TestCase):
         mock_build.get_result_url.return_value = "http://localhost/123"
         mock_build.get_console.return_value = "This is the log"
         mock_build.get_artifacts.return_value = []
-        parameters = [{"name": "BUILD_ID", "value": ""}]
+        parameters = [{"name": "BUILD_ID", "value": ""},
+                      {"name": "REQUESTOR", "value": "testing"}]
         mock_build.get_actions.return_value = {"parameters": parameters}
 
         with mock.patch("jenkins.tasks.logger") as mock_logger:
@@ -128,6 +177,7 @@ class ImportBuildTaskTest(TestCase):
         self.assertEqual("SUCCESS", build.status)
         self.assertEqual("This is the log", build.console_log)
         self.assertEqual(parameters, build.parameters)
+        self.assertEqual(user, build.requested_by)
 
 
 job_xml = """
@@ -158,9 +208,15 @@ class CreateJobTaskTest(TestCase):
         mock_jenkins.return_value.has_job.assert_called_with("testing")
         mock_jenkins.return_value.create_job.assert_called_with(
             "testing",
-            job_xml.replace(
-                "{{ notifications_url }}",
-                "http://example.com/jenkins/notifications/?server=%d" %
+            ("<project>http://example.com/jenkins/notifications/?server=%d"
+             "<hudson.model.ParametersDefinitionProperty>"
+             "<parameterDefinitions>"
+             "<hudson.model.TextParameterDefinition>"
+             "<name>REQUESTOR</name>"
+             "<description>The username requesting the build</description>"
+             "<defaultValue /></hudson.model.TextParameterDefinition>"
+             "</parameterDefinitions>"
+             "</hudson.model.ParametersDefinitionProperty></project>" %
                 job.server.pk).strip())
 
     @override_settings(
@@ -186,9 +242,15 @@ class CreateJobTaskTest(TestCase):
 
         mock_jenkins.return_value.has_job.assert_called_with("testing")
         mock_apijob.update_config.assert_called_with(
-            job_xml.replace(
-                "{{ notifications_url }}",
-                "http://example.com/jenkins/notifications/?server=%d" %
+            ("<project>http://example.com/jenkins/notifications/?server=%d"
+             "<hudson.model.ParametersDefinitionProperty>"
+             "<parameterDefinitions>"
+             "<hudson.model.TextParameterDefinition>"
+             "<name>REQUESTOR</name>"
+             "<description>The username requesting the build</description>"
+             "<defaultValue /></hudson.model.TextParameterDefinition>"
+             "</parameterDefinitions>"
+             "</hudson.model.ParametersDefinitionProperty></project>" %
                 job.server.pk).strip())
 
 

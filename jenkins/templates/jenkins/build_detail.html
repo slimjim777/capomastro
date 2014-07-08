@@ -22,6 +22,7 @@
         <tr><th>Server</th><td><a href="{% url 'jenkinsserver_detail' pk=build.job.server.pk %}">{{ build.job.server }}</a></td></tr>
         <tr><th>Job</th><td><a href="{% url 'jenkinsserver_job_builds_index' server_pk=build.job.server.pk job_pk=build.job.pk %}">{{ build.job }}</a></td></tr>
         <tr><th>Jenkins URL</th><td><a href="{{ build.url }}">{{ build.url }}</a></td></th></tr>
+        <tr><th>Requested by</th><td>{{ build.requested_by.get_full_name|default:"Unknown" }}</td></th></tr>
       </tbody>
     </table>
   </div>

@@ -6,8 +6,7 @@ from jenkinsapi.jenkins import Jenkins
 from jenkins.models import Build, JobType
 from .helpers import mock_url
 from .factories import (
-    BuildFactory, JenkinsServerFactory, JobTypeFactory,
-    JobTypeWithParamsFactory)
+    BuildFactory, JenkinsServerFactory, JobTypeWithParamsFactory)
 
 
 class JenkinsServerTest(TestCase):

@@ -1,5 +1,6 @@
 from django.db import models
 from django.utils.encoding import python_2_unicode_compatible
+from django.contrib.auth.models import User
 
 from jenkinsapi.jenkins import Jenkins
 from jenkins.utils import parse_parameters_from_job
@@ -72,6 +73,7 @@ class Build(models.Model):
     console_log = models.TextField(blank=True, null=True, editable=False)
     parameters = fields.JSONField(blank=True, null=True, editable=False)
     created_at = models.DateTimeField(auto_now_add=True)
+    requested_by = models.ForeignKey(User, null=True, editable=False, blank=True)
 
     class Meta:
         ordering = ["-number"]
