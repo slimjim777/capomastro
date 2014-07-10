@@ -37,7 +37,7 @@ class Dependency(models.Model):
         Return the most recent build
         """
         if self.job is not None:
-            finished_builds = self.job.build_set.filter(phase="FINISHED")
+            finished_builds = self.job.build_set.filter(phase=Build.FINALIZED)
             if finished_builds.count() > 0:
                 return finished_builds.order_by("-number")[0]
 
@@ -52,7 +52,6 @@ class Dependency(models.Model):
             return split_parameters(self.parameters)
         except ValueError:
             return
-        return build_parameters
 
     @property
     def is_building(self):
@@ -60,11 +59,11 @@ class Dependency(models.Model):
         Returns True if we believe this dependency is currently being built
         on a server.
 
-        TODO: What happens if we never get the "FINISHED" / "COMPLETED"
-        notifications?
+        TODO: What happens if we never get the "FINALIZED" / "COMPLETED"
+        notifications? Status gets left as "UNKNOWN"
         """
         return Build.objects.filter(
-            job=self.job, phase="STARTED").exists()
+            job=self.job, phase=Build.STARTED).exists()
 
 
 @python_2_unicode_compatible
@@ -120,7 +119,7 @@ class Project(models.Model):
 @python_2_unicode_compatible
 class ProjectBuildDependency(models.Model):
     """
-    Represents one of the dependencies of a particular Projet Build.
+    Represents one of the dependencies of a particular Project Build.
     """
     projectbuild = models.ForeignKey(
         "ProjectBuild", related_name="dependencies")
@@ -177,13 +176,14 @@ class ProjectBuild(models.Model):
         met.
         """
         return (
-            self.phase == "FINISHED"
+            self.phase == Build.FINALIZED
             and not self.archived
             and self.get_current_artifacts().exists())
 
     def save(self, **kwargs):
         if not self.pk:
             self.build_id = generate_projectbuild_id(self)
+
         super(ProjectBuild, self).save(**kwargs)
 
 

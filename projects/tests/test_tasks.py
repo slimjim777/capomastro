@@ -1,19 +1,17 @@
 from __future__ import unicode_literals
 
 from django.test import TestCase
+from jenkins.models import Build
 
 from projects.helpers import build_project
 from projects.models import (
     ProjectDependency, ProjectBuildDependency, ProjectBuild)
 from projects.tests.factories import DependencyFactory, ProjectFactory
-from projects.tasks import (
-    process_build_dependencies, create_projectbuilds_for_autotracking,
-    update_projectbuilds)
+from projects.tasks import process_build_dependencies
 from jenkins.tests.factories import BuildFactory
 
 
 class ProcessBuildDependenciesTest(TestCase):
-
     def setUp(self):
         self.project = ProjectFactory.create()
 
@@ -108,8 +106,8 @@ class ProcessBuildDependenciesTest(TestCase):
 
     def test_project_build_status_when_all_dependencies_have_builds(self):
         """
-        When we have FINISHED builds for all the dependencies, the projectbuild
-        state should be FINISHED.
+        When we have FINALIZED builds for all the dependencies, the projectbuild
+        state should be FINALIZED.
         """
         dependency1 = DependencyFactory.create()
         ProjectDependency.objects.create(
@@ -120,16 +118,17 @@ class ProcessBuildDependenciesTest(TestCase):
             project=self.project, dependency=dependency2)
 
         from projects.helpers import build_project
+
         projectbuild = build_project(self.project, queue_build=False)
 
         for job in [dependency1.job, dependency2.job]:
             build = BuildFactory.create(
-                job=job, build_id=projectbuild.build_key, phase="FINISHED")
+                job=job, build_id=projectbuild.build_key, phase=Build.FINALIZED)
             process_build_dependencies(build.pk)
 
         projectbuild = ProjectBuild.objects.get(pk=projectbuild.pk)
         self.assertEqual("SUCCESS", projectbuild.status)
-        self.assertEqual("FINISHED", projectbuild.phase)
+        self.assertEqual(Build.FINALIZED, projectbuild.phase)
         self.assertIsNotNone(projectbuild.ended_at)
 
     def test_auto_track_dependency_triggers_project_build_creation(self):
@@ -144,7 +143,7 @@ class ProcessBuildDependenciesTest(TestCase):
 
         dependency2 = DependencyFactory.create()
         existing_build = BuildFactory.create(
-            job=dependency2.job, phase="FINISHED")
+            job=dependency2.job, phase=Build.FINALIZED)
         ProjectDependency.objects.create(
             project=self.project, dependency=dependency2,
             current_build=existing_build)
@@ -153,7 +152,7 @@ class ProcessBuildDependenciesTest(TestCase):
             0,
             ProjectBuild.objects.filter(project=self.project).count())
 
-        build = BuildFactory.create(job=dependency1.job, phase="FINISHED")
+        build = BuildFactory.create(job=dependency1.job, phase=Build.FINALIZED)
         process_build_dependencies(build.pk)
 
         self.assertEqual(
@@ -181,8 +180,8 @@ class ProcessBuildDependenciesTest(TestCase):
         """
         project1, dependency1, dependency2 = self.create_dependencies(2)
         project2 = ProjectFactory.create()
-        ProjectDependency.objects.create(
-                project=project2, dependency=dependency2)
+        ProjectDependency.objects.create(project=project2,
+                                         dependency=dependency2)
 
         projectbuild = build_project(project1, queue_build=False)
 
@@ -204,8 +203,8 @@ class ProcessBuildDependenciesTest(TestCase):
         """
         project1, dependency = self.create_dependencies()
         project2 = ProjectFactory.create()
-        ProjectDependency.objects.create(
-                project=project2, dependency=dependency)
+        ProjectDependency.objects.create(project=project2,
+                                         dependency=dependency)
 
         projectbuild = build_project(project1, queue_build=False)
 
@@ -217,8 +216,8 @@ class ProcessBuildDependenciesTest(TestCase):
         self.assertEqual(
             [dependency, dependency],
             sorted([b.dependency for b in
-              ProjectBuildDependency.objects.all()]))
+                    ProjectBuildDependency.objects.all()]))
         self.assertEqual(
             [build, build],
             sorted([b.build for b in
-              ProjectBuildDependency.objects.all()]))
+                    ProjectBuildDependency.objects.all()]))

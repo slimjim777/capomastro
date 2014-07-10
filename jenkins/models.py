@@ -61,13 +61,17 @@ class Job(models.Model):
 
 @python_2_unicode_compatible
 class Build(models.Model):
+    # Define the phase names
+    STARTED = 'STARTED'
+    COMPLETED = 'COMPLETED'
+    FINALIZED = 'FINALIZED'
 
     job = models.ForeignKey(Job)
     build_id = models.CharField(max_length=255)
     number = models.IntegerField()
     duration = models.IntegerField(null=True)
     url = models.CharField(max_length=255)
-    phase = models.CharField(max_length=25)  # FINISHED, STARTED, COMPLETED
+    phase = models.CharField(max_length=25)  # FINALIZED, STARTED, COMPLETED
     status = models.CharField(max_length=255)
     console_log = models.TextField(blank=True, null=True, editable=False)
     parameters = fields.JSONField(blank=True, null=True, editable=False)
@@ -78,6 +82,15 @@ class Build(models.Model):
 
     def __str__(self):
         return self.build_id or "%s %s" % (self.job, self.number)
+
+    @staticmethod
+    def translate_build_phase(phase):
+        """
+        Jenkins notifications changed the phase from FINISHED to FINALIZED.
+        """
+        if phase == "FINISHED":
+            return Build.FINALIZED
+        return phase
 
 
 @python_2_unicode_compatible
