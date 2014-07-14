@@ -1,3 +1,5 @@
+import xml.etree.ElementTree as ET
+
 from django.test import SimpleTestCase, TestCase
 from django.utils import timezone
 from django.test.utils import override_settings
@@ -6,7 +8,8 @@ import mock
 
 from jenkins.utils import (
     get_notifications_url, DefaultSettings, get_job_xml_for_upload,
-    get_context_for_template, generate_job_name, parse_parameters_from_job)
+    get_context_for_template, generate_job_name, parse_parameters_from_job,
+    JenkinsParameter, parameter_to_xml, add_parameter_to_job)
 from .factories import (
     JobFactory, JobTypeFactory, JenkinsServerFactory, JobTypeWithParamsFactory)
 
@@ -130,10 +133,20 @@ class GetTemplatedJobTest(TestCase):
 
         "processing instruction can not have PITarget with reserveld xml"
         """
+        empty_config = """\n
+        <?xml version='1.0' encoding='UTF-8'?>
+        <project>
+          <properties>
+            <hudson.model.ParametersDefinitionProperty>
+              <parameterDefinitions />
+            </hudson.model.ParametersDefinitionProperty>
+          </properties>
+        </project>
+        """
         server = JenkinsServerFactory.create()
-        jobtype = JobTypeFactory.create(config_xml="\ntesting")
+        jobtype = JobTypeFactory.create(config_xml=empty_config)
         job = JobFactory.create(jobtype=jobtype)
-        self.assertEqual("testing", get_job_xml_for_upload(job, server))
+        self.assertTrue(get_job_xml_for_upload(job, server)[0] != "\n")
 
 
 class GenerateNameJobTest(TestCase):
@@ -153,7 +166,7 @@ class GenerateNameJobTest(TestCase):
         self.assertEqual(name, expected_job_name)
 
 
-class ParseParametersFromJob(TestCase):
+class ParseParametersFromJobTest(TestCase):
 
     def test_parse_parameters_from_job(self):
         """
@@ -169,3 +182,41 @@ class ParseParametersFromJob(TestCase):
            "description": "Branch to checkout and build.",
            "defaultValue": "http:///launchpad.net/mybranch"}],
           parse_parameters_from_job(jobtype.config_xml))
+
+
+class AddParametersToXMLTest(TestCase):
+
+    def test_parameter_to_xml(self):
+        """
+        parameter_to_xml takes a JenkinsParameter and converts it to the XML
+        representation for a Jenkins parameter.
+        """
+        parameter = JenkinsParameter("TEST_ID", "Testing Element", "DEFAULT")
+        xml = parameter_to_xml(parameter)
+        expected = ("<hudson.model.TextParameterDefinition>"
+                    "<name>TEST_ID</name>"
+                    "<description>Testing Element</description>"
+                    "<defaultValue>DEFAULT</defaultValue>"
+                    "</hudson.model.TextParameterDefinition>")
+        self.assertEqual(expected, ET.tostring(xml))
+
+    def test_add_parameter_to_job(self):
+        """
+        add_parameter_to_job adds the XML for a JenkinsParameter to a Jenkins
+        job document.
+        """
+        parameter = JenkinsParameter("TEST_ID", "Testing Element", "DEFAULT")
+        jobtype = JobTypeWithParamsFactory.build()
+        new_xml = add_parameter_to_job(parameter, jobtype.config_xml)
+
+        self.assertEqual([
+          {"name": "BUILD_ID",
+           "description": "The projectbuild id to associate with.",
+           "defaultValue": None},
+          {"name": "BRANCH_TO_CHECKOUT",
+           "description": "Branch to checkout and build.",
+           "defaultValue": "http:///launchpad.net/mybranch"},
+          {"name": "TEST_ID",
+           "description": "Testing Element",
+           "defaultValue": "DEFAULT"}],
+          parse_parameters_from_job(new_xml))

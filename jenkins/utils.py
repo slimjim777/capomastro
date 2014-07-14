@@ -8,6 +8,9 @@ from django.utils import timezone
 from django.utils.text import slugify
 
 
+PARAMETERS = ".//properties/hudson.model.ParametersDefinitionProperty/parameterDefinitions/"
+
+
 def get_notifications_url(base, server):
     """
     Returns the full URL for notifications given a base.
@@ -38,7 +41,12 @@ def get_job_xml_for_upload(job, server):
     context = get_context_for_template(job, server)
     # We need to strip leading/trailing whitespace in order to avoid having the
     # <?xml> PI not in the first line of the document.
-    return template.render(context).strip()
+    job_xml = template.render(context).strip()
+    requestor = JenkinsParameter(
+        "REQUESTOR", "The username requesting the build", "")
+
+    job_xml = add_parameter_to_job(requestor, job_xml)
+    return job_xml
 
 
 def generate_job_name(jobtype):
@@ -75,8 +83,6 @@ class DefaultSettings(object):
         return getattr(settings, key, getattr(self.defaults, key, None))
 
 
-xpath = ".//hudson.model.ParametersDefinitionProperty/parameterDefinitions/"
-
 
 def parse_parameters_from_job(body):
     """
@@ -85,9 +91,56 @@ def parse_parameters_from_job(body):
     """
     result = []
     root = ET.fromstring(body)
-    for param in root.findall(xpath):
+    for param in root.findall(PARAMETERS):
         item = {}
         for param_element in param.findall("./"):
             item[param_element.tag] = param_element.text
         result.append(item)
     return result
+
+
+class JenkinsParameter(object):
+    """Represents a parameter for a Jenkins job."""
+
+    definition = "TextParameterDefinition"
+
+    def __init__(self, name, description, default):
+        self.name = name
+        self.description = description
+        self.default = default
+
+    @property
+    def type(self):
+        return "hudson.model.%s" % self.definition
+
+
+def parameter_to_xml(param):
+    """
+    Converts a JenkinsParameter to the XML element representation for a Jenkins
+    job parameter.
+    """
+    element = ET.Element(param.type)
+    ET.SubElement(element, "name").text = param.name
+    ET.SubElement(element, "description").text = param.description
+    ET.SubElement(element, "defaultValue").text = param.default
+    return element
+
+
+def add_parameter_to_job(param, job):
+    """
+    Adds a JenkinsParameter to an existing job xml document, returns the job XML
+    as a string.
+
+    # NOTE: This does nothing to check whether or not the parameter already
+    # exists.
+    """
+    root = ET.fromstring(job)
+    parameters_container = root.find(PARAMETERS[:-1])
+    if parameters_container is None:
+        parameters = root.find(".//hudson.model.ParametersDefinitionProperty")
+        if parameters is None:
+            parameters = ET.SubElement(root, "hudson.model.ParametersDefinitionProperty")
+            parameters_container = ET.SubElement(parameters, "parameterDefinitions")
+
+    parameters_container.append(parameter_to_xml(param))
+    return ET.tostring(root)

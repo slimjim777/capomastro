@@ -2,7 +2,7 @@ from jenkins.tasks import build_job
 from projects.models import ProjectDependency
 
 
-def build_dependency(dependency, build_id=None):
+def build_dependency(dependency, build_id=None, user=None):
     """
     Queues a build of the job associated with the depenency along with
     any parameters that might be needed.
@@ -13,6 +13,8 @@ def build_dependency(dependency, build_id=None):
         kwargs["params"] = build_parameters
     if build_id:
         kwargs["build_id"] = build_id
+    if user:
+        kwargs["user"] = user.username
     build_job.delay(
         dependency.job.pk, **kwargs)
 

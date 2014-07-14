@@ -377,7 +377,7 @@ class DependencyDetailTest(WebTest):
         self.assertContains(
             response, "Build for '%s' queued." % dependency.name)
         build_job_mock.delay.assert_called_once_with(
-            dependency.job.pk)
+            dependency.job.pk, user=self.user.username)
 
     def test_dependency_build_with_parameters(self):
         """
@@ -399,7 +399,8 @@ class DependencyDetailTest(WebTest):
         self.assertContains(
             response, "Build for '%s' queued." % dependency.name)
         build_job_mock.delay.assert_called_once_with(
-            dependency.job.pk, params={"TESTPARAMETER": "500"})
+            dependency.job.pk, params={"TESTPARAMETER": "500"},
+            user=self.user.username)
 
 
 class DependencyUpdateTest(WebTest):

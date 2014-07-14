@@ -215,7 +215,7 @@ class DependencyDetailView(LoginRequiredMixin, DetailView):
         Queue a build of this Dependency.
         """
         dependency = get_object_or_404(Dependency, pk=pk)
-        build_dependency(dependency)
+        build_dependency(dependency, user=request.user)
         messages.add_message(
             self.request, messages.INFO,
             "Build for '%s' queued." % dependency.name)

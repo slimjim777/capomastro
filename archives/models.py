@@ -1,5 +1,6 @@
 import logging
 import urlparse
+from collections import OrderedDict
 
 from django.db import models
 from django.utils.encoding import python_2_unicode_compatible
@@ -73,7 +74,7 @@ class Archive(models.Model):
         This adds dependency-only builds to the archive.
         """
         logging.info("    processing dependency builds")
-        items = {}
+        items = OrderedDict()
         for artifact in build.artifact_set.all():
             logging.info("Adding artifact %s", artifact)
             for dependency in build.job.dependency_set.all():
@@ -86,7 +87,7 @@ class Archive(models.Model):
         This adds projectbuild builds to the archive.
         """
         logging.info("    processing projectbuilds")
-        items = {}
+        items = OrderedDict()
         for artifact in build.artifact_set.all():
             for dependency in build.projectbuild_dependencies.all():
                 logging.info("Adding artifact %s", artifact)

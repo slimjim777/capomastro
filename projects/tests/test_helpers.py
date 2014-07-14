@@ -7,6 +7,7 @@ from projects.models import (
 from projects.helpers import (
     build_project, build_dependency)
 from .factories import ProjectFactory, DependencyFactory
+from jenkins.tests.factories import BuildFactory
 
 
 class BuildProjectTest(TestCase):
@@ -72,37 +73,6 @@ class BuildProjectTest(TestCase):
             dependency.job.pk, build_id=new_build.build_key,
             params={"THISVALUE": "mako"})
 
-#    def test_build_project_with_specified_dependencies(self):
-#        """
-#        If a list of dependencies is provided, then we should only build those
-#        dependencies.
-#        """
-#        [dep1, dep2, dep3] = DependencyFactory.create_batch(3)
-#        project = ProjectFactory.create()
-#        for dep in [dep1, dep2, dep3]:
-#            ProjectDependency.objects.create(
-#                project=project, dependency=dep, auto_track=True)
-#
-#        build = BuildFactory.create(job=dep1.job)
-#        # Reload object from database.
-#        project_dep1 = ProjectDependency.objects.get(
-#            project=project, dependency=dep1)
-#        self.assertEqual(build, project_dep1.current_build)
-#
-#        with mock.patch("projects.helpers.build_job") as mock_build_job:
-#            new_build = build_project(project, dependencies=[dep1, dep2])
-#
-#        projectbuild_dependencies = ProjectBuildDependency.objects.filter(
-#            projectbuild=new_build)
-#        self.assertEqual(3, projectbuild_dependencies.all().count())
-#        self.assertEqual(
-#            set([dep1, dep2, dep3]),
-#            set([x.dependency for x in projectbuild_dependencies.all()]))
-#
-#        mock_build_job.delay.assert_has_calls(
-#            [mock.call(dep1.job.pk, build_id=new_build.build_key),
-#             mock.call(dep2.job.pk, build_id=new_build.build_key)])
-#
     def test_build_project_assigns_user_correctly(self):
         """
         If we pass a user to build_project, the user is assigned as the user
@@ -157,3 +127,17 @@ class BuildDependencyTest(TestCase):
 
         mock_build_job.delay.assert_called_once_with(
             dependency.job.pk, build_id="201403.2")
+
+    def test_build_dependency_with_user(self):
+        """
+        build_dependency schedules the build of a dependency, and sets the
+        requestor parameter if there's a request user.
+        """
+        dependency = DependencyFactory.create()
+        user = User.objects.create_user("testing")
+
+        with mock.patch("projects.helpers.build_job") as mock_build_job:
+            build_dependency(dependency, build_id="201403.2", user=user)
+
+        mock_build_job.delay.assert_called_once_with(
+            dependency.job.pk, build_id="201403.2", user="testing")
