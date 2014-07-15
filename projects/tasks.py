@@ -75,7 +75,7 @@ def update_projectbuilds(build):
             updated = True
         if len(phases) == 1:
             projectbuild.phase = list(phases)[0]
-            if projectbuild.phase == "FINISHED":
+            if projectbuild.phase == Build.FINALIZED:
                 projectbuild.ended_at = timezone.now()
                 projectbuild.save()
         elif updated:

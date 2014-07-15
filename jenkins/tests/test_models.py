@@ -36,6 +36,16 @@ class BuildTest(TestCase):
             build_numbers,
             list(Build.objects.all().values_list("number", flat=True)))
 
+    def test_phase_names(self):
+        """
+        The names of the phases vary depending on the version of the
+        Notification plugin, so we need to define the authoritative names in
+        capomastro.
+        """
+        self.assertEquals(Build.STARTED, 'STARTED')
+        self.assertEquals(Build.COMPLETED, 'COMPLETED')
+        self.assertEquals(Build.FINALIZED, 'FINALIZED')
+
 
 class JobTypeTest(TestCase):
 

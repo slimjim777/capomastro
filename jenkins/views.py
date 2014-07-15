@@ -43,14 +43,18 @@ class NotificationHandlerView(CsrfExemptMixin, View):
 
         build_id = ""
         build_number = notification["build"]["number"]
-        build_phase = notification["build"]["phase"]
+
+        # Translate the build phase name, as we may be running with an older
+        # version of the Notification plugin
+        build_phase = Build.translate_build_phase(notification["build"]["phase"])
+
         if "parameters" in notification["build"]:
             build_id = notification["build"]["parameters"].get("BUILD_ID")
 
-        if notification["build"]["phase"] == "STARTED":
+        if Build.STARTED == build_phase:
             job.build_set.create(
                 number=build_number, build_id=build_id, phase=build_phase)
-        elif notification["build"]["phase"] == "FINISHED":
+        elif Build.FINALIZED == build_phase:
             build_status = notification["build"]["status"]
             build_url = notification["build"]["url"]
             try:

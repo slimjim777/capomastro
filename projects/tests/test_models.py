@@ -3,6 +3,7 @@ from __future__ import unicode_literals
 from django.test import TestCase
 from django.contrib.auth.models import User
 from django.utils import timezone
+from jenkins.models import Build
 
 from projects.models import (
     Dependency, ProjectDependency, ProjectBuild, generate_projectbuild_id)
@@ -27,7 +28,7 @@ class DependencyTest(TestCase):
         """
         build1 = BuildFactory.create()
         build2 = BuildFactory.create(
-            phase="FINISHED", status="SUCCESS", job=build1.job)
+            phase=Build.FINALIZED, status="SUCCESS", job=build1.job)
         dependency = DependencyFactory.create(job=build1.job)
         self.assertEqual(build2, dependency.get_current_build())
 
@@ -186,11 +187,11 @@ class ProjectBuildTest(TestCase):
         for job in [dependency1.job, dependency2.job]:
             build = BuildFactory.create(
                 job=job, build_id=projectbuild.build_key,
-                phase="FINISHED")
+                phase=Build.FINALIZED)
             builds.append(build)
             process_build_dependencies(build.pk)
         projectbuild = ProjectBuild.objects.get(pk=projectbuild.pk)
-        self.assertEqual("FINISHED", projectbuild.phase)
+        self.assertEqual(Build.FINALIZED, projectbuild.phase)
 
         self.assertFalse(
             projectbuild.can_be_archived,
@@ -221,6 +222,6 @@ class ProjectBuildTest(TestCase):
 
         for job in [dependency1.job, dependency2.job]:
             BuildFactory.create(
-                job=job, build_id=projectbuild.build_id, phase="FINISHED")
+                job=job, build_id=projectbuild.build_id, phase=Build.FINALIZED)
         projectbuild = ProjectBuild.objects.get(pk=projectbuild.pk)
         self.assertFalse(projectbuild.can_be_archived)

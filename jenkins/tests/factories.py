@@ -64,7 +64,7 @@ class BuildFactory(factory.DjangoModelFactory):
     number = factory.Sequence(lambda n: n)
     duration = factory.fuzzy.FuzzyInteger(100, 500000)
     status = "SUCCESS"
-    phase = "STARTED"
+    phase = Build.STARTED
     url = factory.Sequence(lambda n: "http://www.example.com/job/%d" % n)
 
 

@@ -53,7 +53,26 @@ class NotificationHandlerTest(TestCase):
         """
         notification = {
             "name": "unknown job",
-            "build": {"phase": "FINISHED", "number": 10}
+            "build": {"phase": Build.FINALIZED, "number": 10}
+        }
+        with mock.patch("jenkins.views.logging") as mock_logging:
+            response = self._get_response_with_data(
+                notification)
+            self.assertEqual(412, response.status_code)
+            mock_logging.warn.assert_called_once_with(
+                "Notification for unknown job 'unknown job'")
+
+    def test_handle_notification_with_unknown_job_finalized(self):
+        """
+        If we can't find the job referred to in the notification, we should get
+        a 404 response?
+
+        NOTE: The Jenkins notification plugin doesn't seem to care what
+        response we send back...
+        """
+        notification = {
+            "name": "unknown job",
+            "build": {"phase": Build.FINALIZED, "number": 10}
         }
         with mock.patch("jenkins.views.logging") as mock_logging:
             response = self._get_response_with_data(
@@ -78,7 +97,7 @@ class NotificationHandlerTest(TestCase):
         self.assertEqual(1, Build.objects.count())
         build = Build.objects.get(job=self.job, number=11)
         self.assertEqual("", build.status)
-        self.assertEqual("STARTED", build.phase)
+        self.assertEqual(Build.STARTED, build.phase)
 
     def test_handle_started_notification_with_build_id(self):
         """
@@ -118,7 +137,9 @@ class NotificationHandlerTest(TestCase):
         """
         When a build has completed all the post-build operations, we get a
         FINISHED notification, this should trigger creation of a Build
-        representing the FINISHED build.
+        representing the FINALIZED build. The phase name should be translated
+        from FINISHED to FINALIZED in the process. The name change was
+        introduced in version 1.6 of the Jenkins Notifications plugin.
         """
         self.job.build_set.create(
             number=11,
@@ -139,18 +160,46 @@ class NotificationHandlerTest(TestCase):
         self.assertEqual("SUCCESS", build.status)
         # This gets properly populated by the task that runs.
         self.assertEqual("job/mytestjob/11/", build.url)
-        self.assertEqual("FINISHED", build.phase)
+        self.assertEqual(Build.FINALIZED, build.phase)
         mock_postprocess_build.assert_called_once_with(build)
 
-    def test_handle_finished_notification_with_no_started_build(self):
+    def test_handle_finalized_notification(self):
         """
-        If we get a finished notfication for a build we don't have any
+        When a build has completed all the post-build operations, we get a
+        FINALIZED notification (in later versions of the plugin), this should
+        trigger creation of a Build representing the FINALIZED build.
+        """
+        self.job.build_set.create(
+            number=11,
+            phase="STARTED")
+        finished = {
+            "build": {
+                "number": 11,
+                "phase": "FINALIZED",
+                "status": "SUCCESS",
+                "url": "job/mytestjob/11/"},
+            "name": "mytestjob",
+            "url": "job/mytestjob/"}
+
+        with mock.patch("jenkins.views.postprocess_build") as mock_postprocess_build:
+            self._get_response_with_data(finished)
+
+        build = Build.objects.get(job=self.job, number=11)
+        self.assertEqual("SUCCESS", build.status)
+        # This gets properly populated by the task that runs.
+        self.assertEqual("job/mytestjob/11/", build.url)
+        self.assertEqual(Build.FINALIZED, build.phase)
+        mock_postprocess_build.assert_called_once_with(build)
+
+    def test_handle_finalized_notification_with_no_started_build(self):
+        """
+        If we get a finished notification for a build we don't have any
         previous record of, we should still store it.
         """
         finished = {
             "build": {
                 "number": 20,
-                "phase": "FINISHED",
+                "phase": Build.FINALIZED,
                 "status": "SUCCESS",
                 "url": "job/mytestjob/20/"},
             "name": "mytestjob",
@@ -163,7 +212,7 @@ class NotificationHandlerTest(TestCase):
         self.assertEqual("SUCCESS", build.status)
         # This gets properly populated by the task that runs.
         self.assertEqual("job/mytestjob/20/", build.url)
-        self.assertEqual("FINISHED", build.phase)
+        self.assertEqual(Build.FINALIZED, build.phase)
         mock_postprocess_build.assert_called_once_with(build)
 
     def test_handle_finished_notification_with_build_id(self):
