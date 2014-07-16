@@ -515,9 +515,12 @@ class InitiateProjectBuildTest(WebTest):
         projectbuild = response.context["projectbuild"]
 
         build_job_mock.delay.assert_has_calls([
-            mock.call(dep1.job.pk, build_id=projectbuild.build_key),
-            mock.call(dep2.job.pk, build_id=projectbuild.build_key),
-            mock.call(dep3.job.pk, build_id=projectbuild.build_key)])
+            mock.call(dep1.job.pk, build_id=projectbuild.build_key,
+                      user='testing'),
+            mock.call(dep2.job.pk, build_id=projectbuild.build_key,
+                      user='testing'),
+            mock.call(dep3.job.pk, build_id=projectbuild.build_key,
+                      user='testing')])
         self.assertContains(
             response, "Build '%s' queued." % projectbuild.build_id)
 
@@ -543,8 +546,10 @@ class InitiateProjectBuildTest(WebTest):
         projectbuild = response.context["projectbuild"]
 
         build_job_mock.delay.assert_has_calls([
-            mock.call(dep1.job.pk, build_id=projectbuild.build_key),
-            mock.call(dep3.job.pk, build_id=projectbuild.build_key)])
+            mock.call(dep1.job.pk, build_id=projectbuild.build_key,
+                      user='testing'),
+            mock.call(dep3.job.pk, build_id=projectbuild.build_key,
+                      user='testing')])
 
     def test_project_build_form_requires_selection(self):
         """
