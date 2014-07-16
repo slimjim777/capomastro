@@ -55,7 +55,7 @@ def build_project(project, user=None, dependencies=None, **kwargs):
             ProjectBuildDependency.objects.create(**kwargs)
             if queue_build:
                 build_dependency(
-                    dependency.dependency, build_id=build.build_key)
+                    dependency.dependency, build_id=build.build_key, user=user)
 
     # If it's automated, then we create a ProjectBuildDependency for each
     # dependency of the project and prepopulate it with the last known build.
